@@ -215,6 +215,8 @@ scheduler = configure_scheduler(
 
 ## Available Operators
 
+The bottom four operators (`pack_candidates`, `extract_winners`, `majority`, and `select_by_id`) are all non deterministic
+
 | Operator | Description | Example Use Case |
 |----------|-------------|------------------|
 | `transform` | Transform content format/style | Convert JSON to text |
