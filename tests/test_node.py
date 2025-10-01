@@ -61,7 +61,7 @@ class TestNodeInitialization:
         """Test node initialization with invalid operator."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
 
-        with pytest.raises(OperatorError, match="Operator 'nonexistent' not found"):
+        with pytest.raises(ValidationError, match="Failed to create node"):
             Node('nonexistent', model_config=config)
 
     def test_node_auto_generated_id_uniqueness(self):

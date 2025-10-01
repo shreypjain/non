@@ -50,7 +50,7 @@ async def test_latest_anthropic_models():
         "claude-4",
         "claude-4-opus",
         "claude-4-haiku",
-        "claude-sonnet-4",
+        "claude-3-5-sonnet-20241022",
         "claude-opus-4",
         "claude-opus-4.1",
 

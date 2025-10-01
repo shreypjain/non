@@ -80,6 +80,3 @@ docs/_build/
 # Temporary files
 *.tmp
 *.temp
-
-**/CLAUDE.md
-CLAUDE.md

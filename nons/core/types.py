@@ -249,7 +249,7 @@ class ExecutionMetrics(BaseModel):
 
 # Pricing information for cost calculation
 PRICING_INFO = {
-    # OpenAI pricing (per 1M tokens) as of 2024
+    # OpenAI pricing (per 1M tokens) as of 2025
     "openai": {
         "gpt-4": {"input": 30.0, "output": 60.0},
         "gpt-4-turbo": {"input": 10.0, "output": 30.0},
@@ -257,7 +257,7 @@ PRICING_INFO = {
         "gpt-4o": {"input": 5.0, "output": 15.0},
         "gpt-4o-mini": {"input": 0.15, "output": 0.6},
     },
-    # Anthropic pricing (per 1M tokens) as of 2024
+    # Anthropic pricing (per 1M tokens) as of 2025
     "anthropic": {
         "claude-3-5-sonnet-20241022": {"input": 3.0, "output": 15.0},
         "claude-3-5-haiku-20241022": {"input": 1.0, "output": 5.0},

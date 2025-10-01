@@ -14,7 +14,7 @@ from .types import ModelConfig, LayerConfig, NetworkConfig, RateLimitConfig, Mod
 # Default configurations
 DEFAULT_OPENAI_MODEL = "gpt-4"
 DEFAULT_ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
-DEFAULT_GOOGLE_MODEL = "gemini-2.5-flash"
+DEFAULT_GOOGLE_MODEL = "gemini-2.0-flash"
 DEFAULT_TEMPERATURE = 0.7
 DEFAULT_MAX_TOKENS = 4000
 
