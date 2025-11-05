@@ -16,6 +16,7 @@ from nons.core.node import Node
 from nons.core.layer import Layer
 from nons.core.network import NoN
 from nons.core.types import LayerConfig, ErrorPolicy
+from nons.core.scheduler import start_scheduler, stop_scheduler
 import nons.operators.base
 
 
@@ -24,6 +25,9 @@ async def main():
     print("🎨 NoN PRETTY PRINTING SHOWCASE")
     print("=" * 60)
     print()
+
+    # Start the scheduler
+    await start_scheduler()
 
     # 1. Node Pretty Printing
     print("🔵 NODE DEMONSTRATION")
