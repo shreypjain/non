@@ -1,6 +1,7 @@
 """
 Pytest configuration and shared fixtures.
 """
+
 import asyncio
 import pytest
 import sys
@@ -9,10 +10,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Dict, Any, Optional
 
 # Add the project root to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Import NoN components
-from nons.core.types import ModelConfig, ModelProvider, ExecutionMetrics, TokenUsage, CostInfo
+from nons.core.types import (
+    ModelConfig,
+    ModelProvider,
+    ExecutionMetrics,
+    TokenUsage,
+    CostInfo,
+)
 from nons.core.node import Node
 from nons.core.layer import Layer
 from nons.core.network import NoN
@@ -35,7 +42,7 @@ def mock_model_config():
         provider=ModelProvider.MOCK,
         model_name="test-model",
         temperature=0.7,
-        max_tokens=100
+        max_tokens=100,
     )
 
 
@@ -44,20 +51,14 @@ def mock_execution_metrics():
     """Create mock execution metrics."""
     return ExecutionMetrics(
         execution_time=1.23,
-        token_usage=TokenUsage(
-            prompt_tokens=50,
-            completion_tokens=30,
-            total_tokens=80
-        ),
+        token_usage=TokenUsage(prompt_tokens=50, completion_tokens=30, total_tokens=80),
         cost_info=CostInfo(
-            cost_usd=0.001234,
-            provider=ModelProvider.MOCK,
-            model_name="test-model"
+            cost_usd=0.001234, provider=ModelProvider.MOCK, model_name="test-model"
         ),
         provider=ModelProvider.MOCK,
         model_name="test-model",
         success=True,
-        timestamp=1234567890.0
+        timestamp=1234567890.0,
     )
 
 
@@ -66,12 +67,8 @@ def mock_llm_response():
     """Create a mock LLM response."""
     return {
         "content": "Mock response from LLM",
-        "usage": {
-            "prompt_tokens": 50,
-            "completion_tokens": 30,
-            "total_tokens": 80
-        },
-        "model": "test-model"
+        "usage": {"prompt_tokens": 50, "completion_tokens": 30, "total_tokens": 80},
+        "model": "test-model",
     }
 
 
@@ -84,14 +81,18 @@ class MockLLMProvider:
         self.last_prompt = None
         self.last_config = None
 
-    async def generate_completion(self, prompt: str, config: ModelConfig) -> tuple[str, ExecutionMetrics]:
+    async def generate_completion(
+        self, prompt: str, config: ModelConfig
+    ) -> tuple[str, ExecutionMetrics]:
         """Mock completion generation."""
         self.call_count += 1
         self.last_prompt = prompt
         self.last_config = config
 
         # Get response based on prompt or use default
-        response = self.responses.get(prompt, self.responses.get("default", "Mock response"))
+        response = self.responses.get(
+            prompt, self.responses.get("default", "Mock response")
+        )
 
         # Create mock metrics
         metrics = ExecutionMetrics(
@@ -99,17 +100,15 @@ class MockLLMProvider:
             token_usage=TokenUsage(
                 prompt_tokens=len(prompt.split()),
                 completion_tokens=len(response.split()),
-                total_tokens=len(prompt.split()) + len(response.split())
+                total_tokens=len(prompt.split()) + len(response.split()),
             ),
             cost_info=CostInfo(
-                cost_usd=0.001,
-                provider=config.provider,
-                model_name=config.model_name
+                cost_usd=0.001, provider=config.provider, model_name=config.model_name
             ),
             provider=config.provider,
             model_name=config.model_name,
             success=True,
-            timestamp=1234567890.0
+            timestamp=1234567890.0,
         )
 
         return response, metrics
@@ -140,9 +139,9 @@ def sample_node(mock_model_config):
     import nons.operators.base
 
     return Node(
-        operator_name='generate',
+        operator_name="generate",
         model_config=mock_model_config,
-        additional_prompt_context="Test context"
+        additional_prompt_context="Test context",
     )
 
 
@@ -153,9 +152,9 @@ def sample_layer(mock_model_config):
     import nons.operators.base
 
     nodes = [
-        Node('generate', mock_model_config),
-        Node('generate', mock_model_config),
-        Node('generate', mock_model_config)
+        Node("generate", mock_model_config),
+        Node("generate", mock_model_config),
+        Node("generate", mock_model_config),
     ]
     return Layer(nodes)
 
@@ -166,11 +165,7 @@ def sample_network(mock_model_config):
     # Ensure operators are imported
     import nons.operators.base
 
-    return NoN.from_operators([
-        'generate',
-        ['generate', 'generate'],
-        'generate'
-    ])
+    return NoN.from_operators(["generate", ["generate", "generate"], "generate"])
 
 
 @pytest.fixture
@@ -189,11 +184,11 @@ def clean_operator_registry():
             "input": {
                 "type": "object",
                 "properties": {"text": {"type": "string"}},
-                "required": ["text"]
+                "required": ["text"],
             },
             "output": {"type": "string"},
-            "description": "Test operator"
-        }
+            "description": "Test operator",
+        },
     )
 
     return registry
@@ -202,7 +197,7 @@ def clean_operator_registry():
 @pytest.fixture
 def mock_provider_factory():
     """Mock the provider factory to return mock providers."""
-    with patch('nons.utils.providers.create_provider') as mock_factory:
+    with patch("nons.utils.providers.create_provider") as mock_factory:
         mock_factory.return_value = MockLLMProvider()
         yield mock_factory
 
@@ -210,7 +205,7 @@ def mock_provider_factory():
 @pytest.fixture
 def mock_observability():
     """Mock the observability system."""
-    with patch('nons.observability.integration.get_observability') as mock_obs:
+    with patch("nons.observability.integration.get_observability") as mock_obs:
         mock_manager = MagicMock()
         mock_manager.start_operation.return_value = MagicMock()
         mock_manager.finish_operation.return_value = None
@@ -221,9 +216,11 @@ def mock_observability():
 @pytest.fixture
 def mock_scheduler():
     """Mock the request scheduler."""
-    with patch('nons.core.scheduler.get_scheduler') as mock_scheduler:
+    with patch("nons.core.scheduler.get_scheduler") as mock_scheduler:
         scheduler = AsyncMock()
-        scheduler.schedule_request = AsyncMock(side_effect=lambda op, *args, **kwargs: op(*args, **kwargs))
+        scheduler.schedule_request = AsyncMock(
+            side_effect=lambda op, *args, **kwargs: op(*args, **kwargs)
+        )
         mock_scheduler.return_value = scheduler
         yield scheduler
 
@@ -232,7 +229,7 @@ def mock_scheduler():
 def setup_test_environment():
     """Set up test environment with mocked providers."""
     # Patch the provider creation to use mock providers
-    with patch('nons.utils.providers.create_provider') as mock_create:
+    with patch("nons.utils.providers.create_provider") as mock_create:
         mock_create.return_value = MockLLMProvider()
         yield
 
@@ -277,7 +274,7 @@ def create_test_input_data():
         "complex_text": "This is a more complex test input with multiple sentences. It contains various types of content.",
         "structured_data": {
             "text": "Sample text",
-            "metadata": {"source": "test", "type": "sample"}
+            "metadata": {"source": "test", "type": "sample"},
         },
-        "list_data": ["item1", "item2", "item3"]
+        "list_data": ["item1", "item2", "item3"],
     }

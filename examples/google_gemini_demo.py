@@ -11,7 +11,7 @@ import sys
 import os
 
 # Add the nons package to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from nons.core.node import Node
 from nons.core.network import NoN
@@ -38,7 +38,7 @@ async def test_google_models():
             provider=ModelProvider.GOOGLE,
             model_name=model,
             temperature=0.7,
-            max_tokens=50
+            max_tokens=50,
         )
 
         result = await test_provider(config)
@@ -62,13 +62,13 @@ async def demo_google_node():
     print("=" * 60)
 
     node = Node(
-        'generate',
+        "generate",
         model_config=ModelConfig(
             provider=ModelProvider.GOOGLE,
             model_name="gemini-2.5-flash",
             temperature=0.7,
-            max_tokens=100
-        )
+            max_tokens=100,
+        ),
     )
 
     print("Before execution:")
@@ -79,7 +79,7 @@ async def demo_google_node():
     prompts = [
         "What is 2+2?",
         "Write a haiku about technology",
-        "Explain machine learning in one sentence"
+        "Explain machine learning in one sentence",
     ]
 
     for i, prompt in enumerate(prompts, 1):
@@ -105,29 +105,27 @@ async def demo_mixed_provider_network():
     print("=" * 60)
 
     # Create network with mixed providers
-    network = NoN.from_operators([
-        'generate',                    # Layer 0: Single generate
-        ['generate', 'generate']       # Layer 1: Parallel generates
-    ])
+    network = NoN.from_operators(
+        [
+            "generate",  # Layer 0: Single generate
+            ["generate", "generate"],  # Layer 1: Parallel generates
+        ]
+    )
 
     # Configure different providers
     # Layer 0: Google Gemini
     network.layers[0].nodes[0].configure_model(
-        provider=ModelProvider.GOOGLE,
-        model_name="gemini-2.5-flash",
-        max_tokens=50
+        provider=ModelProvider.GOOGLE, model_name="gemini-2.5-flash", max_tokens=50
     )
 
     # Layer 1: Mixed Google and Anthropic
     network.layers[1].nodes[0].configure_model(
-        provider=ModelProvider.GOOGLE,
-        model_name="gemini-2.0-flash",
-        max_tokens=50
+        provider=ModelProvider.GOOGLE, model_name="gemini-2.0-flash", max_tokens=50
     )
     network.layers[1].nodes[1].configure_model(
         provider=ModelProvider.ANTHROPIC,
         model_name="claude-3-haiku-20240307",
-        max_tokens=50
+        max_tokens=50,
     )
 
     print("Network architecture:")
@@ -157,7 +155,9 @@ async def demo_mixed_provider_network():
             if metrics:
                 cost = node.get_total_cost()
                 tokens = node.get_total_tokens()
-                print(f"    Node {j} ({metrics.provider}): {tokens} tokens, ${cost:.6f}")
+                print(
+                    f"    Node {j} ({metrics.provider}): {tokens} tokens, ${cost:.6f}"
+                )
 
                 if metrics.provider == "google":
                     google_cost += cost
@@ -170,17 +170,19 @@ async def demo_mixed_provider_network():
     print("🏆 PROVIDER TOTALS:")
     print(f"  Google: {google_tokens} tokens, ${google_cost:.6f}")
     print(f"  Anthropic: {anthropic_tokens} tokens, ${anthropic_cost:.6f}")
-    print(f"  Total: {google_tokens + anthropic_tokens} tokens, ${google_cost + anthropic_cost:.6f}")
+    print(
+        f"  Total: {google_tokens + anthropic_tokens} tokens, ${google_cost + anthropic_cost:.6f}"
+    )
 
-    print("\n" + "="*60 + "\n")
+    print("\n" + "=" * 60 + "\n")
 
 
 async def main():
     """Run Google Gemini integration demo."""
     print("🎯 GOOGLE GEMINI + NoN INTEGRATION")
-    print("="*60)
+    print("=" * 60)
     print("Testing the latest Gemini models with NoN system!")
-    print("="*60)
+    print("=" * 60)
     print()
 
     await test_google_models()
@@ -188,11 +190,11 @@ async def main():
     await demo_mixed_provider_network()
 
     print("🎉 GOOGLE GEMINI INTEGRATION COMPLETED!")
-    print("="*60)
+    print("=" * 60)
     print("✨ Gemini 2.5 models integrated with cost tracking!")
     print("✨ Mixed provider networks with Google + Anthropic!")
     print("✨ Latest AI models available in NoN system!")
-    print("="*60)
+    print("=" * 60)
 
 
 if __name__ == "__main__":

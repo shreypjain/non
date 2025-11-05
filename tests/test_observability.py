@@ -1,13 +1,18 @@
 """
 Tests for observability system (tracing, logging, metrics).
 """
+
 import pytest
 import time
 from unittest.mock import patch, MagicMock
 from nons.observability.tracing import TracingManager, Span, SpanKind, SpanStatus
 from nons.observability.logging import LoggingManager, LogLevel
 from nons.observability.metrics import MetricsManager, MetricType
-from nons.observability.integration import ObservabilityManager, get_observability, configure_observability
+from nons.observability.integration import (
+    ObservabilityManager,
+    get_observability,
+    configure_observability,
+)
 from nons.core.types import TokenUsage, CostInfo, ModelProvider
 
 
@@ -27,9 +32,7 @@ class TestTracingManager:
         manager = TracingManager()
 
         span = manager.start_span(
-            operation_name="test_operation",
-            kind=SpanKind.NODE,
-            tags={"test": "value"}
+            operation_name="test_operation", kind=SpanKind.NODE, tags={"test": "value"}
         )
 
         assert isinstance(span, Span)
@@ -60,7 +63,9 @@ class TestTracingManager:
         manager = TracingManager()
 
         parent_span = manager.start_span("parent", SpanKind.NETWORK)
-        child_span = manager.start_span("child", SpanKind.NODE, parent_span_id=parent_span.span_id)
+        child_span = manager.start_span(
+            "child", SpanKind.NODE, parent_span_id=parent_span.span_id
+        )
 
         assert child_span.parent_span_id == parent_span.span_id
         assert child_span.trace_id == parent_span.trace_id
@@ -70,9 +75,7 @@ class TestTracingManager:
         manager = TracingManager()
 
         token_usage = TokenUsage(
-            prompt_tokens=100,
-            completion_tokens=50,
-            total_tokens=150
+            prompt_tokens=100, completion_tokens=50, total_tokens=150
         )
 
         span = manager.start_span("test", SpanKind.LLM_CALL)
@@ -89,7 +92,7 @@ class TestTracingManager:
         cost_info = CostInfo(
             cost_usd=0.005,
             provider=ModelProvider.ANTHROPIC,
-            model_name="claude-3-haiku-20240307"
+            model_name="claude-3-haiku-20240307",
         )
 
         span = manager.start_span("test", SpanKind.LLM_CALL)
@@ -104,8 +107,12 @@ class TestTracingManager:
 
         # Create spans with same trace ID
         parent = manager.start_span("parent", SpanKind.NETWORK)
-        child1 = manager.start_span("child1", SpanKind.NODE, parent_span_id=parent.span_id)
-        child2 = manager.start_span("child2", SpanKind.NODE, parent_span_id=parent.span_id)
+        child1 = manager.start_span(
+            "child1", SpanKind.NODE, parent_span_id=parent.span_id
+        )
+        child2 = manager.start_span(
+            "child2", SpanKind.NODE, parent_span_id=parent.span_id
+        )
 
         manager.finish_span(child1, SpanStatus.SUCCESS)
         manager.finish_span(child2, SpanStatus.SUCCESS)
@@ -178,7 +185,7 @@ class TestLoggingManager:
             message="Test message",
             component_type="test",
             component_id="test-123",
-            extra_data={"key": "value"}
+            extra_data={"key": "value"},
         )
 
         assert len(manager.logs) == 1
@@ -215,7 +222,9 @@ class TestLoggingManager:
         manager.log(LogLevel.ERROR, "Error message")
 
         assert len(manager.logs) == 2
-        assert all(log["level"] in [LogLevel.WARNING, LogLevel.ERROR] for log in manager.logs)
+        assert all(
+            log["level"] in [LogLevel.WARNING, LogLevel.ERROR] for log in manager.logs
+        )
 
     def test_export_logs(self):
         """Test exporting logs for database storage."""
@@ -262,9 +271,7 @@ class TestMetricsManager:
         manager = MetricsManager()
 
         manager.record_counter(
-            name="test_counter",
-            value=5,
-            tags={"environment": "test"}
+            name="test_counter", value=5, tags={"environment": "test"}
         )
 
         assert len(manager.metrics) == 1
@@ -360,7 +367,7 @@ class TestObservabilityManager:
             operation_name="test_operation",
             kind=SpanKind.NODE,
             component_type="node",
-            component_id="node-123"
+            component_id="node-123",
         )
 
         assert isinstance(span, Span)
@@ -377,8 +384,12 @@ class TestObservabilityManager:
         span = manager.start_operation("test_operation", SpanKind.NODE)
 
         # Add some execution data
-        span.token_usage = TokenUsage(prompt_tokens=10, completion_tokens=5, total_tokens=15)
-        span.cost_info = CostInfo(cost_usd=0.001, provider=ModelProvider.MOCK, model_name="test")
+        span.token_usage = TokenUsage(
+            prompt_tokens=10, completion_tokens=5, total_tokens=15
+        )
+        span.cost_info = CostInfo(
+            cost_usd=0.001, provider=ModelProvider.MOCK, model_name="test"
+        )
 
         manager.finish_operation(span, result="success")
 
@@ -389,7 +400,9 @@ class TestObservabilityManager:
         assert len(manager.metrics.metrics) > 0
 
         # Check for operation completion log
-        completion_logs = [log for log in manager.logging.logs if "completed" in log["message"]]
+        completion_logs = [
+            log for log in manager.logging.logs if "completed" in log["message"]
+        ]
         assert len(completion_logs) > 0
 
     def test_finish_operation_with_error(self):
@@ -406,7 +419,9 @@ class TestObservabilityManager:
         assert "error" in span.logs[-1]
 
         # Check for error log
-        error_logs = [log for log in manager.logging.logs if log["level"] == LogLevel.ERROR]
+        error_logs = [
+            log for log in manager.logging.logs if log["level"] == LogLevel.ERROR
+        ]
         assert len(error_logs) > 0
 
     def test_export_all_data(self):
@@ -480,11 +495,17 @@ class TestObservabilityManager:
 
         # Create a trace with multiple operations
         parent_span = manager.start_operation("parent", SpanKind.NETWORK)
-        child_span = manager.start_operation("child", SpanKind.NODE, parent_span_id=parent_span.span_id)
+        child_span = manager.start_operation(
+            "child", SpanKind.NODE, parent_span_id=parent_span.span_id
+        )
 
         # Add execution data
-        child_span.token_usage = TokenUsage(prompt_tokens=20, completion_tokens=10, total_tokens=30)
-        child_span.cost_info = CostInfo(cost_usd=0.002, provider=ModelProvider.MOCK, model_name="test")
+        child_span.token_usage = TokenUsage(
+            prompt_tokens=20, completion_tokens=10, total_tokens=30
+        )
+        child_span.cost_info = CostInfo(
+            cost_usd=0.002, provider=ModelProvider.MOCK, model_name="test"
+        )
 
         manager.finish_operation(child_span)
         manager.finish_operation(parent_span)
@@ -541,9 +562,7 @@ class TestObservabilityIntegration:
     def test_configure_observability(self):
         """Test observability configuration."""
         manager = configure_observability(
-            enable_tracing=True,
-            enable_logging=False,
-            enable_metrics=True
+            enable_tracing=True, enable_logging=False, enable_metrics=True
         )
 
         assert manager.tracing.enabled is True
@@ -553,9 +572,7 @@ class TestObservabilityIntegration:
     def test_observability_disabled(self):
         """Test behavior when observability is disabled."""
         manager = ObservabilityManager(
-            enable_tracing=False,
-            enable_logging=False,
-            enable_metrics=False
+            enable_tracing=False, enable_logging=False, enable_metrics=False
         )
 
         # Operations should still work but not collect data
@@ -611,8 +628,12 @@ class TestObservabilityPerformance:
 
         # Simulate concurrent operations with overlapping spans
         parent = manager.start_operation("parent", SpanKind.NETWORK)
-        child1 = manager.start_operation("child1", SpanKind.NODE, parent_span_id=parent.span_id)
-        child2 = manager.start_operation("child2", SpanKind.NODE, parent_span_id=parent.span_id)
+        child1 = manager.start_operation(
+            "child1", SpanKind.NODE, parent_span_id=parent.span_id
+        )
+        child2 = manager.start_operation(
+            "child2", SpanKind.NODE, parent_span_id=parent.span_id
+        )
 
         # Finish in different order
         manager.finish_operation(child1)

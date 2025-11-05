@@ -1,9 +1,16 @@
 """
 Tests for operator registry and base operators.
 """
+
 import pytest
 from unittest.mock import patch, AsyncMock
-from nons.operators.registry import OperatorRegistry, operator, get_operator, list_operators, get_operator_info
+from nons.operators.registry import (
+    OperatorRegistry,
+    operator,
+    get_operator,
+    list_operators,
+    get_operator_info,
+)
 from nons.core.types import OperatorError, ValidationError
 
 
@@ -26,15 +33,24 @@ class TestOperatorRegistry:
             "input": {
                 "type": "object",
                 "properties": {"text": {"type": "string"}},
-                "required": ["text"]
+                "required": ["text"],
             },
             "output": {"type": "string"},
-            "description": "Test function"
+            "description": "Test function",
         }
 
         from nons.core.types import OperatorMetadata
-        metadata = OperatorMetadata(name="test_op", description="Test function", examples=[], tags=[])
-        registry.register(test_func, name="test_op", input_schema=schema["input"], output_schema=schema["output"], metadata=metadata)
+
+        metadata = OperatorMetadata(
+            name="test_op", description="Test function", examples=[], tags=[]
+        )
+        registry.register(
+            test_func,
+            name="test_op",
+            input_schema=schema["input"],
+            output_schema=schema["output"],
+            metadata=metadata,
+        )
 
         assert "test_op" in registry._operators
         registered = registry._operators["test_op"]
@@ -52,12 +68,21 @@ class TestOperatorRegistry:
         schema = {
             "input": {"type": "object"},
             "output": {"type": "string"},
-            "description": "Test function"
+            "description": "Test function",
         }
 
         from nons.core.types import OperatorMetadata
-        metadata = OperatorMetadata(name="test_op", description="Test function", examples=[], tags=[])
-        registry.register(test_func, name="test_op", input_schema=schema["input"], output_schema=schema["output"], metadata=metadata)
+
+        metadata = OperatorMetadata(
+            name="test_op", description="Test function", examples=[], tags=[]
+        )
+        registry.register(
+            test_func,
+            name="test_op",
+            input_schema=schema["input"],
+            output_schema=schema["output"],
+            metadata=metadata,
+        )
         retrieved = registry.get("test_op")
 
         assert retrieved.name == "test_op"
@@ -83,9 +108,22 @@ class TestOperatorRegistry:
         schema = {"input": {}, "output": {}, "description": ""}
 
         from nons.core.types import OperatorMetadata
+
         metadata = OperatorMetadata(name="op1", description="", examples=[], tags=[])
-        registry.register(func1, name="op1", input_schema=schema["input"], output_schema=schema["output"], metadata=metadata)
-        registry.register(func2, name="op2", input_schema=schema["input"], output_schema=schema["output"], metadata=metadata)
+        registry.register(
+            func1,
+            name="op1",
+            input_schema=schema["input"],
+            output_schema=schema["output"],
+            metadata=metadata,
+        )
+        registry.register(
+            func2,
+            name="op2",
+            input_schema=schema["input"],
+            output_schema=schema["output"],
+            metadata=metadata,
+        )
 
         operators = registry.list()
         assert set(operators) == {"op1", "op2"}
@@ -101,16 +139,29 @@ class TestOperatorRegistry:
             "input": {
                 "type": "object",
                 "properties": {"text": {"type": "string"}},
-                "required": ["text"]
+                "required": ["text"],
             },
             "output": {"type": "string"},
-            "description": "Test function description"
+            "description": "Test function description",
         }
 
         from nons.core.types import OperatorMetadata
-        metadata = OperatorMetadata(name="test_op", description="Test function description", examples=[], tags=[])
-        registry.register(test_func, name="test_op", input_schema=schema["input"], output_schema=schema["output"], metadata=metadata)
+
+        metadata = OperatorMetadata(
+            name="test_op",
+            description="Test function description",
+            examples=[],
+            tags=[],
+        )
+        registry.register(
+            test_func,
+            name="test_op",
+            input_schema=schema["input"],
+            output_schema=schema["output"],
+            metadata=metadata,
+        )
         from nons.operators.registry import get_operator_info
+
         info = get_operator_info("test_op")
 
         assert info["name"] == "test_op"
@@ -125,14 +176,23 @@ class TestOperatorDecorator:
     def test_operator_decorator_registration(self):
         """Test that @operator decorator registers the function."""
         # Clear any existing operators for clean test
-        with patch('nons.operators.registry._registry') as mock_registry:
+        with patch("nons.operators.registry._registry") as mock_registry:
             mock_registry.register = AsyncMock()
 
             from nons.core.types import InputSchema, OutputSchema, OperatorMetadata
+
             @operator(
-                input_schema=InputSchema(required_params=["text"], optional_params=[], param_types={"text": "str"}),
-                output_schema=OutputSchema(return_type="str", description="Test output"),
-                metadata=OperatorMetadata(name="test_op", description="Test operator", examples=[], tags=[])
+                input_schema=InputSchema(
+                    required_params=["text"],
+                    optional_params=[],
+                    param_types={"text": "str"},
+                ),
+                output_schema=OutputSchema(
+                    return_type="str", description="Test output"
+                ),
+                metadata=OperatorMetadata(
+                    name="test_op", description="Test operator", examples=[], tags=[]
+                ),
             )
             async def test_op(text: str) -> str:
                 return f"processed: {text}"
@@ -141,19 +201,31 @@ class TestOperatorDecorator:
             mock_registry.register.assert_called_once()
             args = mock_registry.register.call_args[0]
             assert args[0] == "test_op"  # function name
-            assert args[1] == test_op    # function itself
+            assert args[1] == test_op  # function itself
 
     def test_operator_decorator_with_custom_name(self):
         """Test @operator decorator with custom name."""
-        with patch('nons.operators.registry._registry') as mock_registry:
+        with patch("nons.operators.registry._registry") as mock_registry:
             mock_registry.register = AsyncMock()
 
             from nons.core.types import InputSchema, OutputSchema, OperatorMetadata
+
             @operator(
                 name="custom_name",
-                input_schema=InputSchema(required_params=["text"], optional_params=[], param_types={"text": "str"}),
-                output_schema=OutputSchema(return_type="str", description="Test output"),
-                metadata=OperatorMetadata(name="custom_name", description="Custom named operator", examples=[], tags=[])
+                input_schema=InputSchema(
+                    required_params=["text"],
+                    optional_params=[],
+                    param_types={"text": "str"},
+                ),
+                output_schema=OutputSchema(
+                    return_type="str", description="Test output"
+                ),
+                metadata=OperatorMetadata(
+                    name="custom_name",
+                    description="Custom named operator",
+                    examples=[],
+                    tags=[],
+                ),
             )
             async def test_function(text: str) -> str:
                 return text
@@ -164,10 +236,17 @@ class TestOperatorDecorator:
     async def test_operator_function_execution(self):
         """Test that decorated operator function executes correctly."""
         from nons.core.types import InputSchema, OutputSchema, OperatorMetadata
+
         @operator(
-            input_schema=InputSchema(required_params=["text"], optional_params=[], param_types={"text": "str"}),
+            input_schema=InputSchema(
+                required_params=["text"],
+                optional_params=[],
+                param_types={"text": "str"},
+            ),
             output_schema=OutputSchema(return_type="str", description="Test output"),
-            metadata=OperatorMetadata(name="test_op", description="Test operator", examples=[], tags=[])
+            metadata=OperatorMetadata(
+                name="test_op", description="Test operator", examples=[], tags=[]
+            ),
         )
         async def test_op(text: str) -> str:
             return f"processed: {text}"
@@ -186,20 +265,20 @@ class TestBaseOperators:
 
     async def test_transform_operator(self):
         """Test the transform operator."""
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_completion.return_value = (
                 "Transformed text",
-                AsyncMock()  # Mock metrics
+                AsyncMock(),  # Mock metrics
             )
             mock_provider_factory.return_value = mock_provider
 
             from nons.operators.registry import get_operator
-            transform_op = get_operator('transform')
+
+            transform_op = get_operator("transform")
 
             result = await transform_op.function(
-                text="Hello world",
-                target_format="uppercase"
+                text="Hello world", target_format="uppercase"
             )
 
             assert result is not None
@@ -207,16 +286,17 @@ class TestBaseOperators:
 
     async def test_generate_operator(self):
         """Test the generate operator."""
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_completion.return_value = (
                 "Generated content",
-                AsyncMock()  # Mock metrics
+                AsyncMock(),  # Mock metrics
             )
             mock_provider_factory.return_value = mock_provider
 
             from nons.operators.registry import get_operator
-            generate_op = get_operator('generate')
+
+            generate_op = get_operator("generate")
 
             result = await generate_op.function(prompt="Write a story")
 
@@ -225,20 +305,20 @@ class TestBaseOperators:
 
     async def test_classify_operator(self):
         """Test the classify operator."""
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_completion.return_value = (
                 "positive",
-                AsyncMock()  # Mock metrics
+                AsyncMock(),  # Mock metrics
             )
             mock_provider_factory.return_value = mock_provider
 
             from nons.operators.registry import get_operator
-            classify_op = get_operator('classify')
+
+            classify_op = get_operator("classify")
 
             result = await classify_op.function(
-                text="I love this!",
-                categories=["positive", "negative", "neutral"]
+                text="I love this!", categories=["positive", "negative", "neutral"]
             )
 
             assert result is not None
@@ -246,20 +326,21 @@ class TestBaseOperators:
 
     async def test_extract_operator(self):
         """Test the extract operator."""
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_completion.return_value = (
                 "John Doe, jane@example.com",
-                AsyncMock()  # Mock metrics
+                AsyncMock(),  # Mock metrics
             )
             mock_provider_factory.return_value = mock_provider
 
             from nons.operators.registry import get_operator
-            extract_op = get_operator('extract')
+
+            extract_op = get_operator("extract")
 
             result = await extract_op.function(
                 text="Contact John Doe at jane@example.com",
-                target_info="names and emails"
+                target_info="names and emails",
             )
 
             assert result is not None
@@ -267,20 +348,20 @@ class TestBaseOperators:
 
     async def test_condense_operator(self):
         """Test the condense operator."""
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_completion.return_value = (
                 "Brief summary",
-                AsyncMock()  # Mock metrics
+                AsyncMock(),  # Mock metrics
             )
             mock_provider_factory.return_value = mock_provider
 
             from nons.operators.registry import get_operator
-            condense_op = get_operator('condense')
+
+            condense_op = get_operator("condense")
 
             result = await condense_op.function(
-                text="Long text to summarize...",
-                target_length="brief"
+                text="Long text to summarize...", target_length="brief"
             )
 
             assert result is not None
@@ -288,20 +369,20 @@ class TestBaseOperators:
 
     async def test_expand_operator(self):
         """Test the expand operator."""
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_completion.return_value = (
                 "Expanded detailed text",
-                AsyncMock()  # Mock metrics
+                AsyncMock(),  # Mock metrics
             )
             mock_provider_factory.return_value = mock_provider
 
             from nons.operators.registry import get_operator
-            expand_op = get_operator('expand')
+
+            expand_op = get_operator("expand")
 
             result = await expand_op.function(
-                text="Brief text",
-                expansion_type="detailed"
+                text="Brief text", expansion_type="detailed"
             )
 
             assert result is not None
@@ -309,21 +390,20 @@ class TestBaseOperators:
 
     async def test_compare_operator(self):
         """Test the compare operator."""
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_completion.return_value = (
                 "Similar concepts with different approaches",
-                AsyncMock()  # Mock metrics
+                AsyncMock(),  # Mock metrics
             )
             mock_provider_factory.return_value = mock_provider
 
             from nons.operators.registry import get_operator
-            compare_op = get_operator('compare')
+
+            compare_op = get_operator("compare")
 
             result = await compare_op.function(
-                text1="First text",
-                text2="Second text",
-                comparison_type="similarities"
+                text1="First text", text2="Second text", comparison_type="similarities"
             )
 
             assert result is not None
@@ -331,20 +411,20 @@ class TestBaseOperators:
 
     async def test_validate_operator(self):
         """Test the validate operator."""
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_completion.return_value = (
                 "Valid: meets all criteria",
-                AsyncMock()  # Mock metrics
+                AsyncMock(),  # Mock metrics
             )
             mock_provider_factory.return_value = mock_provider
 
             from nons.operators.registry import get_operator
-            validate_op = get_operator('validate')
+
+            validate_op = get_operator("validate")
 
             result = await validate_op.function(
-                text="Text to validate",
-                criteria="grammar and clarity"
+                text="Text to validate", criteria="grammar and clarity"
             )
 
             assert result is not None
@@ -352,20 +432,21 @@ class TestBaseOperators:
 
     async def test_route_operator(self):
         """Test the route operator."""
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_completion.return_value = (
                 "technical",
-                AsyncMock()  # Mock metrics
+                AsyncMock(),  # Mock metrics
             )
             mock_provider_factory.return_value = mock_provider
 
             from nons.operators.registry import get_operator
-            route_op = get_operator('route')
+
+            route_op = get_operator("route")
 
             result = await route_op.function(
                 text="Technical documentation about APIs",
-                routes=["technical", "creative", "business"]
+                routes=["technical", "creative", "business"],
             )
 
             assert result is not None
@@ -373,20 +454,20 @@ class TestBaseOperators:
 
     async def test_synthesize_operator(self):
         """Test the synthesize operator."""
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_completion.return_value = (
                 "Synthesized content from multiple sources",
-                AsyncMock()  # Mock metrics
+                AsyncMock(),  # Mock metrics
             )
             mock_provider_factory.return_value = mock_provider
 
             from nons.operators.registry import get_operator
-            synthesize_op = get_operator('synthesize')
+
+            synthesize_op = get_operator("synthesize")
 
             result = await synthesize_op.function(
-                inputs=["Input 1", "Input 2", "Input 3"],
-                synthesis_type="comprehensive"
+                inputs=["Input 1", "Input 2", "Input 3"], synthesis_type="comprehensive"
             )
 
             assert result is not None
@@ -398,9 +479,16 @@ class TestBaseOperators:
 
         operators = list_operators()
         expected_operators = {
-            'transform', 'generate', 'classify', 'extract',
-            'condense', 'expand', 'compare', 'validate',
-            'route', 'synthesize'
+            "transform",
+            "generate",
+            "classify",
+            "extract",
+            "condense",
+            "expand",
+            "compare",
+            "validate",
+            "route",
+            "synthesize",
         }
 
         # Check that all expected operators are present
@@ -417,18 +505,18 @@ class TestBaseOperators:
             info = get_operator_info(op_name)
 
             # Check that info has required fields
-            assert 'name' in info
-            assert 'input_schema' in info
-            assert 'output_schema' in info
-            assert 'description' in info
+            assert "name" in info
+            assert "input_schema" in info
+            assert "output_schema" in info
+            assert "description" in info
 
             # Check that schemas are dictionaries
-            assert isinstance(info['input_schema'], dict)
-            assert isinstance(info['output_schema'], dict)
-            assert isinstance(info['description'], str)
+            assert isinstance(info["input_schema"], dict)
+            assert isinstance(info["output_schema"], dict)
+            assert isinstance(info["description"], str)
 
             # Check that description is not empty
-            assert len(info['description']) > 0
+            assert len(info["description"]) > 0
 
 
 class TestGlobalOperatorFunctions:
@@ -442,8 +530,8 @@ class TestGlobalOperatorFunctions:
         """Test the global get_operator function."""
         from nons.operators.registry import get_operator
 
-        op = get_operator('generate')
-        assert op.name == 'generate'
+        op = get_operator("generate")
+        assert op.name == "generate"
         assert callable(op.function)
 
     def test_list_operators_function(self):
@@ -452,23 +540,23 @@ class TestGlobalOperatorFunctions:
 
         operators = list_operators()
         assert isinstance(operators, list)
-        assert 'generate' in operators
+        assert "generate" in operators
 
     def test_get_operator_info_function(self):
         """Test the global get_operator_info function."""
         from nons.operators.registry import get_operator_info
 
-        info = get_operator_info('generate')
+        info = get_operator_info("generate")
         assert isinstance(info, dict)
-        assert 'name' in info
-        assert info['name'] == 'generate'
+        assert "name" in info
+        assert info["name"] == "generate"
 
     def test_get_nonexistent_operator_info(self):
         """Test getting info for non-existent operator."""
         from nons.operators.registry import get_operator_info
 
         with pytest.raises(OperatorError, match="Operator 'nonexistent' not found"):
-            get_operator_info('nonexistent')
+            get_operator_info("nonexistent")
 
 
 @pytest.mark.unit
@@ -485,15 +573,12 @@ class TestOperatorValidation:
         # For now, we'll test that the operator functions can be called
         from nons.operators.registry import get_operator
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = AsyncMock()
-            mock_provider.generate_completion.return_value = (
-                "Response",
-                AsyncMock()
-            )
+            mock_provider.generate_completion.return_value = ("Response", AsyncMock())
             mock_provider_factory.return_value = mock_provider
 
-            generate_op = get_operator('generate')
+            generate_op = get_operator("generate")
 
             # Test with minimal valid input
             result = await generate_op.function(prompt="test")
@@ -503,12 +588,12 @@ class TestOperatorValidation:
         """Test operator error handling."""
         from nons.operators.registry import get_operator
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_completion.side_effect = Exception("Provider error")
             mock_provider_factory.return_value = mock_provider
 
-            generate_op = get_operator('generate')
+            generate_op = get_operator("generate")
 
             with pytest.raises(Exception, match="Provider error"):
                 await generate_op.function(prompt="test")

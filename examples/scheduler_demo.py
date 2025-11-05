@@ -13,7 +13,7 @@ import json
 import time
 
 # Add the nons package to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Import operators to ensure they're registered
 import nons.operators.base
@@ -22,8 +22,12 @@ from nons.core.node import Node
 from nons.core.network import NoN
 from nons.core.types import ModelConfig, ModelProvider
 from nons.core.scheduler import (
-    get_scheduler, configure_scheduler, start_scheduler, stop_scheduler,
-    QueueStrategy, RateLimitConfig
+    get_scheduler,
+    configure_scheduler,
+    start_scheduler,
+    stop_scheduler,
+    QueueStrategy,
+    RateLimitConfig,
 )
 from nons.observability.integration import get_observability, configure_observability
 
@@ -39,20 +43,19 @@ async def demo_basic_scheduler():
             ModelProvider.GOOGLE: RateLimitConfig(
                 requests_per_minute=20,  # Reduced for demo
                 requests_per_second=2,
-                max_concurrent=3
+                max_concurrent=3,
             ),
             ModelProvider.ANTHROPIC: RateLimitConfig(
                 requests_per_minute=15,  # Reduced for demo
                 requests_per_second=1,
-                max_concurrent=2
+                max_concurrent=2,
             ),
             ModelProvider.MOCK: RateLimitConfig(
-                requests_per_minute=100,
-                max_concurrent=10
-            )
+                requests_per_minute=100, max_concurrent=10
+            ),
         },
         queue_strategy=QueueStrategy.PRIORITY,
-        enable_observability=True
+        enable_observability=True,
     )
 
     # Start the scheduler
@@ -64,21 +67,28 @@ async def demo_basic_scheduler():
 
     # Create nodes with different providers
     nodes = [
-        Node('generate', model_config=ModelConfig(
-            provider=ModelProvider.GOOGLE,
-            model_name="gemini-2.5-flash",
-            max_tokens=30
-        )),
-        Node('generate', model_config=ModelConfig(
-            provider=ModelProvider.ANTHROPIC,
-            model_name="claude-3-haiku-20240307",
-            max_tokens=30
-        )),
-        Node('generate', model_config=ModelConfig(
-            provider=ModelProvider.MOCK,
-            model_name="mock-model",
-            max_tokens=30
-        ))
+        Node(
+            "generate",
+            model_config=ModelConfig(
+                provider=ModelProvider.GOOGLE,
+                model_name="gemini-2.5-flash",
+                max_tokens=30,
+            ),
+        ),
+        Node(
+            "generate",
+            model_config=ModelConfig(
+                provider=ModelProvider.ANTHROPIC,
+                model_name="claude-3-haiku-20240307",
+                max_tokens=30,
+            ),
+        ),
+        Node(
+            "generate",
+            model_config=ModelConfig(
+                provider=ModelProvider.MOCK, model_name="mock-model", max_tokens=30
+            ),
+        ),
     ]
 
     # Execute multiple requests to see rate limiting in action
@@ -91,7 +101,9 @@ async def demo_basic_scheduler():
 
         print(f"  Request {i+1}: {provider_name}")
         task = asyncio.create_task(
-            node.execute(f"Generate a brief fun fact about {provider_name} AI (Request {i+1})")
+            node.execute(
+                f"Generate a brief fun fact about {provider_name} AI (Request {i+1})"
+            )
         )
         tasks.append(task)
 
@@ -105,9 +117,14 @@ async def demo_basic_scheduler():
     print(f"  Running: {stats['is_running']}")
     print(f"  Active Requests: {stats['total_active_requests']}")
 
-    for provider, provider_stats in stats['providers'].items():
-        if provider_stats['queue_length'] > 0 or provider_stats['requests_in_flight'] > 0:
-            print(f"  {provider}: Queue={provider_stats['queue_length']}, In-flight={provider_stats['requests_in_flight']}")
+    for provider, provider_stats in stats["providers"].items():
+        if (
+            provider_stats["queue_length"] > 0
+            or provider_stats["requests_in_flight"] > 0
+        ):
+            print(
+                f"  {provider}: Queue={provider_stats['queue_length']}, In-flight={provider_stats['requests_in_flight']}"
+            )
 
     # Wait for all requests to complete
     results = await asyncio.gather(*tasks)
@@ -116,14 +133,16 @@ async def demo_basic_scheduler():
     print(f"📊 Results:")
     for i, result in enumerate(results):
         provider = nodes[i % len(nodes)].model_config.provider.value
-        result_preview = str(result)[:60] + "..." if len(str(result)) > 60 else str(result)
+        result_preview = (
+            str(result)[:60] + "..." if len(str(result)) > 60 else str(result)
+        )
         print(f"  {i+1}. [{provider}] {result_preview}")
 
     # Final stats
     final_stats = scheduler.get_stats()
     print(f"\n📈 Final Scheduler Stats:")
-    for provider, provider_stats in final_stats['providers'].items():
-        if provider_stats['requests_completed'] > 0:
+    for provider, provider_stats in final_stats["providers"].items():
+        if provider_stats["requests_completed"] > 0:
             print(f"  {provider}:")
             print(f"    Completed: {provider_stats['requests_completed']}")
             print(f"    Failed: {provider_stats['requests_failed']}")
@@ -137,24 +156,30 @@ async def demo_queue_strategies():
     print("⚡ QUEUE STRATEGIES DEMO")
     print("=" * 60)
 
-    strategies = [QueueStrategy.PRIORITY, QueueStrategy.ROUND_ROBIN, QueueStrategy.LEAST_LOADED]
+    strategies = [
+        QueueStrategy.PRIORITY,
+        QueueStrategy.ROUND_ROBIN,
+        QueueStrategy.LEAST_LOADED,
+    ]
 
     for strategy in strategies:
         print(f"\n🎯 Testing strategy: {strategy.value}")
 
         # Reconfigure scheduler with new strategy
         scheduler = configure_scheduler(
-            queue_strategy=strategy,
-            enable_observability=True
+            queue_strategy=strategy, enable_observability=True
         )
         await start_scheduler()
 
         # Create mix of high and low priority requests
-        node = Node('generate', model_config=ModelConfig(
-            provider=ModelProvider.MOCK,  # Use mock for consistent timing
-            model_name="mock-model",
-            max_tokens=20
-        ))
+        node = Node(
+            "generate",
+            model_config=ModelConfig(
+                provider=ModelProvider.MOCK,  # Use mock for consistent timing
+                model_name="mock-model",
+                max_tokens=20,
+            ),
+        )
 
         # Schedule requests with different priorities
         tasks = []
@@ -192,20 +217,21 @@ async def demo_rate_limiting():
             ModelProvider.MOCK: RateLimitConfig(
                 requests_per_minute=10,
                 requests_per_second=1,  # Very strict: 1 request per second
-                max_concurrent=2
+                max_concurrent=2,
             )
         },
-        enable_observability=True
+        enable_observability=True,
     )
     await start_scheduler()
 
     print("⏰ Configured strict rate limit: 1 request/second, max 2 concurrent")
 
-    node = Node('generate', model_config=ModelConfig(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=20
-    ))
+    node = Node(
+        "generate",
+        model_config=ModelConfig(
+            provider=ModelProvider.MOCK, model_name="mock-model", max_tokens=20
+        ),
+    )
 
     # Schedule 5 requests rapidly
     start_time = time.time()
@@ -214,9 +240,7 @@ async def demo_rate_limiting():
     tasks = []
     for i in range(5):
         print(f"  Scheduling request {i+1} at {time.time() - start_time:.2f}s")
-        task = asyncio.create_task(
-            node.execute(f"Rate limited request {i+1}")
-        )
+        task = asyncio.create_task(node.execute(f"Rate limited request {i+1}"))
         tasks.append(task)
 
     # Monitor queue during execution
@@ -242,13 +266,15 @@ async def _monitor_queue_during_execution(scheduler, duration_seconds):
 
     while time.time() - start_time < duration_seconds:
         stats = scheduler.get_stats()
-        mock_stats = stats['providers']['mock']
+        mock_stats = stats["providers"]["mock"]
 
-        if mock_stats['queue_length'] > 0 or mock_stats['requests_in_flight'] > 0:
+        if mock_stats["queue_length"] > 0 or mock_stats["requests_in_flight"] > 0:
             elapsed = time.time() - start_time
-            print(f"  {elapsed:.1f}s: Queue={mock_stats['queue_length']}, "
-                  f"In-flight={mock_stats['requests_in_flight']}, "
-                  f"Completed={mock_stats['requests_completed']}")
+            print(
+                f"  {elapsed:.1f}s: Queue={mock_stats['queue_length']}, "
+                f"In-flight={mock_stats['requests_in_flight']}, "
+                f"Completed={mock_stats['requests_completed']}"
+            )
 
         await asyncio.sleep(0.5)
 
@@ -262,54 +288,45 @@ async def demo_network_with_scheduler():
     scheduler = configure_scheduler(
         rate_limits={
             ModelProvider.GOOGLE: RateLimitConfig(
-                requests_per_minute=30,
-                requests_per_second=3,
-                max_concurrent=5
+                requests_per_minute=30, requests_per_second=3, max_concurrent=5
             ),
             ModelProvider.ANTHROPIC: RateLimitConfig(
-                requests_per_minute=20,
-                requests_per_second=2,
-                max_concurrent=3
+                requests_per_minute=20, requests_per_second=2, max_concurrent=3
             ),
             ModelProvider.MOCK: RateLimitConfig(
-                requests_per_minute=100,
-                max_concurrent=10
-            )
+                requests_per_minute=100, max_concurrent=10
+            ),
         },
         queue_strategy=QueueStrategy.LEAST_LOADED,
-        enable_observability=True
+        enable_observability=True,
     )
     await start_scheduler()
 
     # Create a network with mixed providers
-    network = NoN.from_operators([
-        'generate',  # First layer
-        ['generate', 'generate', 'generate']  # Second layer with 3 nodes
-    ])
+    network = NoN.from_operators(
+        [
+            "generate",  # First layer
+            ["generate", "generate", "generate"],  # Second layer with 3 nodes
+        ]
+    )
 
     # Configure different providers for each node
     network.layers[0].nodes[0].configure_model(
-        provider=ModelProvider.GOOGLE,
-        model_name="gemini-2.5-flash",
-        max_tokens=40
+        provider=ModelProvider.GOOGLE, model_name="gemini-2.5-flash", max_tokens=40
     )
 
     network.layers[1].nodes[0].configure_model(
         provider=ModelProvider.ANTHROPIC,
         model_name="claude-3-haiku-20240307",
-        max_tokens=40
+        max_tokens=40,
     )
 
     network.layers[1].nodes[1].configure_model(
-        provider=ModelProvider.GOOGLE,
-        model_name="gemini-2.0-flash",
-        max_tokens=40
+        provider=ModelProvider.GOOGLE, model_name="gemini-2.0-flash", max_tokens=40
     )
 
     network.layers[1].nodes[2].configure_model(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=40
+        provider=ModelProvider.MOCK, model_name="mock-model", max_tokens=40
     )
 
     print(f"🏗️  Created network with {len(network.layers)} layers")
@@ -320,7 +337,9 @@ async def demo_network_with_scheduler():
     start_time = time.time()
     print("\n🚀 Executing network with scheduler coordination...")
 
-    result = await network.forward("Explain the future of AI in 3 different perspectives")
+    result = await network.forward(
+        "Explain the future of AI in 3 different perspectives"
+    )
 
     execution_time = time.time() - start_time
     print(f"\n✅ Network execution completed in {execution_time:.2f}s")
@@ -329,9 +348,9 @@ async def demo_network_with_scheduler():
     final_stats = scheduler.get_stats()
     print(f"\n📈 Final Scheduler Statistics:")
     total_requests = 0
-    for provider, stats in final_stats['providers'].items():
-        if stats['requests_completed'] > 0:
-            total_requests += stats['requests_completed']
+    for provider, stats in final_stats["providers"].items():
+        if stats["requests_completed"] > 0:
+            total_requests += stats["requests_completed"]
             print(f"  {provider}:")
             print(f"    Requests: {stats['requests_completed']}")
             print(f"    Avg Time: {stats['avg_request_time']:.3f}s")
@@ -350,23 +369,21 @@ async def demo_observability_integration():
 
     # Configure both observability and scheduler
     obs = configure_observability(
-        enable_tracing=True,
-        enable_logging=True,
-        enable_metrics=True
+        enable_tracing=True, enable_logging=True, enable_metrics=True
     )
 
     scheduler = configure_scheduler(
-        enable_observability=True,
-        queue_strategy=QueueStrategy.PRIORITY
+        enable_observability=True, queue_strategy=QueueStrategy.PRIORITY
     )
     await start_scheduler()
 
     # Execute some requests
-    node = Node('generate', model_config=ModelConfig(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=25
-    ))
+    node = Node(
+        "generate",
+        model_config=ModelConfig(
+            provider=ModelProvider.MOCK, model_name="mock-model", max_tokens=25
+        ),
+    )
 
     print("🔄 Executing 3 requests with full observability...")
 
@@ -389,15 +406,15 @@ async def demo_observability_integration():
 
     # Show scheduler-specific spans
     scheduler_spans = [
-        span for span in all_data['spans']
-        if span.get('component_type') == 'scheduler'
+        span for span in all_data["spans"] if span.get("component_type") == "scheduler"
     ]
     print(f"  Scheduler Spans: {len(scheduler_spans)}")
 
     # Show request execution spans
     request_spans = [
-        span for span in all_data['spans']
-        if span.get('operation_name') == 'request_execution'
+        span
+        for span in all_data["spans"]
+        if span.get("operation_name") == "request_execution"
     ]
     print(f"  Request Execution Spans: {len(request_spans)}")
 
@@ -421,7 +438,7 @@ async def main():
     print()
 
     # Set API key for real testing
-    os.environ['GOOGLE_API_KEY'] = 'AIzaSyB9k5cWxpvia7D6otvBTq8uahiHEaxAhME'
+    os.environ["GOOGLE_API_KEY"] = "AIzaSyB9k5cWxpvia7D6otvBTq8uahiHEaxAhME"
 
     await demo_basic_scheduler()
     await demo_queue_strategies()

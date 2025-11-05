@@ -11,9 +11,16 @@ import time
 from typing import Any, Dict, Optional, Union, List
 from ..operators.registry import RegisteredOperator, get_operator
 from .types import (
-    Content, ModelConfig, ExecutionContext, ErrorPolicy,
-    OperatorError, ValidationError, ModelProvider,
-    ExecutionMetrics, TokenUsage, CostInfo
+    Content,
+    ModelConfig,
+    ExecutionContext,
+    ErrorPolicy,
+    OperatorError,
+    ValidationError,
+    ModelProvider,
+    ExecutionMetrics,
+    TokenUsage,
+    CostInfo,
 )
 from .config import get_default_model_config
 from ..utils.providers import create_provider
@@ -33,7 +40,7 @@ class Node:
         operator_name: str,
         model_config: Optional[ModelConfig] = None,
         additional_prompt_context: str = "",
-        node_id: Optional[str] = None
+        node_id: Optional[str] = None,
     ):
         """
         Initialize a Node with an operator and configuration.
@@ -79,7 +86,7 @@ class Node:
             f"│ Model: {self.model_config.model_name} │",
             f"│ Provider: {self.model_config.provider.value} │",
             f"│ Temperature: {self.model_config.temperature} │",
-            f"│ Executions: {self._execution_count} │"
+            f"│ Executions: {self._execution_count} │",
         ]
 
         if self._last_execution_time is not None:
@@ -87,17 +94,21 @@ class Node:
 
         # Add cost and token information
         if self._execution_count > 0:
-            lines.extend([
-                "├─ Usage & Cost ─┤",
-                f"│ Total Tokens: {self._total_tokens.total_tokens:,} │",
-                f"│ Total Cost: ${self._total_cost.total_cost_usd:.6f} │"
-            ])
+            lines.extend(
+                [
+                    "├─ Usage & Cost ─┤",
+                    f"│ Total Tokens: {self._total_tokens.total_tokens:,} │",
+                    f"│ Total Cost: ${self._total_cost.total_cost_usd:.6f} │",
+                ]
+            )
 
             if self._last_metrics:
-                lines.extend([
-                    f"│ Last Tokens: {self._last_metrics.token_usage.total_tokens} │",
-                    f"│ Last Cost: ${self._last_metrics.cost_info.total_cost_usd:.6f} │"
-                ])
+                lines.extend(
+                    [
+                        f"│ Last Tokens: {self._last_metrics.token_usage.total_tokens} │",
+                        f"│ Last Cost: ${self._last_metrics.cost_info.total_cost_usd:.6f} │",
+                    ]
+                )
 
         if self._last_error:
             lines.append(f"│ Last Error: ❌ │")
@@ -105,7 +116,11 @@ class Node:
             lines.append(f"│ Status: ✅ │")
 
         if self.additional_prompt_context:
-            context_preview = self.additional_prompt_context[:20] + "..." if len(self.additional_prompt_context) > 20 else self.additional_prompt_context
+            context_preview = (
+                self.additional_prompt_context[:20] + "..."
+                if len(self.additional_prompt_context) > 20
+                else self.additional_prompt_context
+            )
             lines.append(f"│ Context: {context_preview} │")
 
         lines.append("└─────────────────────┘")
@@ -119,10 +134,7 @@ class Node:
         return output_str
 
     async def execute(
-        self,
-        *args,
-        execution_context: Optional[ExecutionContext] = None,
-        **kwargs
+        self, *args, execution_context: Optional[ExecutionContext] = None, **kwargs
     ) -> Any:
         """
         Execute the node's operator with the given inputs.
@@ -150,7 +162,7 @@ class Node:
                 layer_index=0,
                 node_index=0,
                 start_time=start_time,
-                metadata={"node_id": self.node_id}
+                metadata={"node_id": self.node_id},
             )
 
         try:
@@ -158,7 +170,7 @@ class Node:
             self.operator.validate_inputs(*args, **kwargs)
 
             # For 'generate' operator, use LLM provider directly to capture metrics
-            if self.operator_name == 'generate':
+            if self.operator_name == "generate":
                 result, metrics = await self._execute_with_provider(*args, **kwargs)
                 self._update_metrics(metrics)
             else:
@@ -178,7 +190,9 @@ class Node:
             error_msg = f"Node {self.node_id} ({self.operator_name}) failed: {str(e)}"
             raise OperatorError(error_msg) from e
 
-    async def _execute_with_provider(self, *args, **kwargs) -> tuple[str, ExecutionMetrics]:
+    async def _execute_with_provider(
+        self, *args, **kwargs
+    ) -> tuple[str, ExecutionMetrics]:
         """
         Execute using LLM provider with request scheduling for rate limiting.
         Falls back to mock provider if API calls fail.
@@ -216,6 +230,7 @@ class Node:
             except Exception as e:
                 # If real API fails, fall back to mock provider
                 from ..utils.providers import MockProvider
+
                 mock_provider = MockProvider(self.model_config)
                 result, metrics = await mock_provider.generate_completion(prompt)
                 return result, metrics
@@ -231,7 +246,7 @@ class Node:
                 priority=0,  # Default priority
                 estimated_tokens=int(estimated_tokens),
                 component_type="node",
-                component_id=self.node_id
+                component_id=self.node_id,
             )
             return result, metrics
         except Exception as e:
@@ -251,13 +266,17 @@ class Node:
             "total_cost_usd": self._total_cost.total_cost_usd,
             "average_tokens_per_execution": (
                 self._total_tokens.total_tokens / self._execution_count
-                if self._execution_count > 0 else 0
+                if self._execution_count > 0
+                else 0
             ),
             "average_cost_per_execution": (
                 self._total_cost.total_cost_usd / self._execution_count
-                if self._execution_count > 0 else 0.0
+                if self._execution_count > 0
+                else 0.0
             ),
-            "last_metrics": self._last_metrics.model_dump() if self._last_metrics else None
+            "last_metrics": (
+                self._last_metrics.model_dump() if self._last_metrics else None
+            ),
         }
 
     def reset_stats(self) -> None:
@@ -300,7 +319,7 @@ class Node:
         provider: Optional[ModelProvider] = None,
         model_name: Optional[str] = None,
         temperature: Optional[float] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         """
         Update model configuration for this node.
@@ -325,7 +344,7 @@ class Node:
             else:
                 self.model_config.extra_params[key] = value
 
-    def clone(self, new_node_id: Optional[str] = None) -> 'Node':
+    def clone(self, new_node_id: Optional[str] = None) -> "Node":
         """
         Create a clone of this node with a new ID.
 
@@ -339,10 +358,10 @@ class Node:
             operator_name=self.operator_name,
             model_config=ModelConfig(**self.model_config.model_dump()),
             additional_prompt_context=self.additional_prompt_context,
-            node_id=new_node_id
+            node_id=new_node_id,
         )
 
-    def __mul__(self, count: int) -> List['Node']:
+    def __mul__(self, count: int) -> List["Node"]:
         """
         Create multiple clones of this node for parallel execution.
 
@@ -357,11 +376,13 @@ class Node:
             >>> parallel_nodes = node * 3  # Creates 3 parallel nodes
         """
         if not isinstance(count, int) or count < 1:
-            raise ValueError(f"Multiplication count must be a positive integer, got {count}")
+            raise ValueError(
+                f"Multiplication count must be a positive integer, got {count}"
+            )
 
         return [self.clone() for _ in range(count)]
 
-    def __rmul__(self, count: int) -> List['Node']:
+    def __rmul__(self, count: int) -> List["Node"]:
         """
         Right multiplication operator for creating multiple node clones.
 
@@ -378,11 +399,7 @@ class Node:
         return self.__mul__(count)
 
     @classmethod
-    def from_operator(
-        cls,
-        operator_name: str,
-        **config_kwargs
-    ) -> 'Node':
+    def from_operator(cls, operator_name: str, **config_kwargs) -> "Node":
         """
         Factory method to create a node from an operator name.
 

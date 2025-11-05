@@ -12,8 +12,12 @@ import uuid
 from typing import List, Any, Dict, Optional, Union
 from .node import Node
 from .types import (
-    Content, LayerConfig, ExecutionContext, ErrorPolicy,
-    OperatorError, NetworkError
+    Content,
+    LayerConfig,
+    ExecutionContext,
+    ErrorPolicy,
+    OperatorError,
+    NetworkError,
 )
 from .config import get_default_layer_config
 
@@ -27,7 +31,7 @@ class LayerResult:
         execution_time: float,
         successful_nodes: int,
         failed_nodes: int,
-        node_results: Dict[str, Any]
+        node_results: Dict[str, Any],
     ):
         self.outputs = outputs
         self.execution_time = execution_time
@@ -53,12 +57,14 @@ class LayerResult:
             f"│ Failed: {self.failed_nodes} │",
             f"│ Execution Time: {self.execution_time:.3f}s │",
             f"│ Outputs: {len(self.outputs)} │",
-            "├─ Outputs Preview ─┤"
+            "├─ Outputs Preview ─┤",
         ]
 
         # Show output previews
         for i, output in enumerate(self.outputs[:3]):  # Show first 3 outputs
-            output_preview = str(output)[:40] + "..." if len(str(output)) > 40 else str(output)
+            output_preview = (
+                str(output)[:40] + "..." if len(str(output)) > 40 else str(output)
+            )
             lines.append(f"│ [{i}]: {output_preview} │")
 
         if len(self.outputs) > 3:
@@ -80,7 +86,7 @@ class Layer:
         self,
         nodes: List[Node],
         layer_config: Optional[LayerConfig] = None,
-        layer_id: Optional[str] = None
+        layer_id: Optional[str] = None,
     ):
         """
         Initialize a Layer with nodes and configuration.
@@ -117,19 +123,19 @@ class Layer:
             f"│ Timeout: {self.layer_config.timeout_seconds}s │",
             f"│ Max Retries: {self.layer_config.max_retries} │",
             f"│ Min Success: {self.layer_config.min_success_threshold:.1%} │",
-            f"│ Executions: {self._execution_count} │"
+            f"│ Executions: {self._execution_count} │",
         ]
 
         if self._last_result:
-            lines.extend([
-                "├─ Last Result ─┤",
-                f"│ Success Rate: {self._last_result.success_rate:.1%} │",
-                f"│ Exec Time: {self._last_result.execution_time:.3f}s │"
-            ])
+            lines.extend(
+                [
+                    "├─ Last Result ─┤",
+                    f"│ Success Rate: {self._last_result.success_rate:.1%} │",
+                    f"│ Exec Time: {self._last_result.execution_time:.3f}s │",
+                ]
+            )
 
-        lines.extend([
-            "├─ Nodes ─┤"
-        ])
+        lines.extend(["├─ Nodes ─┤"])
 
         # Show operator names for each node
         for i, node in enumerate(self.nodes[:5]):  # Show first 5 nodes
@@ -144,7 +150,7 @@ class Layer:
     async def execute_parallel(
         self,
         inputs: Union[List[Any], Any],
-        execution_context: Optional[ExecutionContext] = None
+        execution_context: Optional[ExecutionContext] = None,
     ) -> LayerResult:
         """
         Execute all nodes in parallel with the given inputs.
@@ -178,7 +184,9 @@ class Layer:
             self._total_execution_time += execution_time
 
             # Count successful and failed executions
-            successful_nodes = sum(1 for result in node_results.values() if result.get('success', False))
+            successful_nodes = sum(
+                1 for result in node_results.values() if result.get("success", False)
+            )
             failed_nodes = len(self.nodes) - successful_nodes
 
             result = LayerResult(
@@ -186,7 +194,7 @@ class Layer:
                 execution_time=execution_time,
                 successful_nodes=successful_nodes,
                 failed_nodes=failed_nodes,
-                node_results=node_results
+                node_results=node_results,
             )
 
             self._last_result = result
@@ -207,7 +215,9 @@ class Layer:
             if isinstance(e, NetworkError):
                 raise
             else:
-                raise NetworkError(f"Layer {self.layer_id} execution failed: {str(e)}") from e
+                raise NetworkError(
+                    f"Layer {self.layer_id} execution failed: {str(e)}"
+                ) from e
 
     def _prepare_inputs(self, inputs: Union[List[Any], Any]) -> List[Any]:
         """Prepare inputs for each node."""
@@ -219,8 +229,7 @@ class Layer:
             return [inputs] * len(self.nodes)
 
     def _create_node_contexts(
-        self,
-        base_context: Optional[ExecutionContext]
+        self, base_context: Optional[ExecutionContext]
     ) -> List[ExecutionContext]:
         """Create execution contexts for each node."""
         contexts = []
@@ -233,7 +242,7 @@ class Layer:
                     layer_index=base_context.layer_index,
                     node_index=i,
                     start_time=time.time(),
-                    metadata={**base_context.metadata, "node_id": node.node_id}
+                    metadata={**base_context.metadata, "node_id": node.node_id},
                 )
             else:
                 context = ExecutionContext(
@@ -242,16 +251,14 @@ class Layer:
                     layer_index=0,
                     node_index=i,
                     start_time=time.time(),
-                    metadata={"node_id": node.node_id}
+                    metadata={"node_id": node.node_id},
                 )
             contexts.append(context)
 
         return contexts
 
     async def _execute_with_policy(
-        self,
-        node_inputs: List[Any],
-        node_contexts: List[ExecutionContext]
+        self, node_inputs: List[Any], node_contexts: List[ExecutionContext]
     ) -> tuple[List[Any], Dict[str, Any]]:
         """Execute nodes according to the configured error policy."""
 
@@ -268,16 +275,16 @@ class Layer:
             return await self._execute_fail_fast(node_inputs, node_contexts)
 
     async def _execute_fail_fast(
-        self,
-        node_inputs: List[Any],
-        node_contexts: List[ExecutionContext]
+        self, node_inputs: List[Any], node_contexts: List[ExecutionContext]
     ) -> tuple[List[Any], Dict[str, Any]]:
         """Execute with fail-fast policy."""
         tasks = []
-        for i, (node, node_input, context) in enumerate(zip(self.nodes, node_inputs, node_contexts)):
+        for i, (node, node_input, context) in enumerate(
+            zip(self.nodes, node_inputs, node_contexts)
+        ):
             task = asyncio.create_task(
                 node.execute(node_input, execution_context=context),
-                name=f"node_{i}_{node.node_id}"
+                name=f"node_{i}_{node.node_id}",
             )
             tasks.append(task)
 
@@ -296,9 +303,7 @@ class Layer:
             raise
 
     async def _execute_with_retry(
-        self,
-        node_inputs: List[Any],
-        node_contexts: List[ExecutionContext]
+        self, node_inputs: List[Any], node_contexts: List[ExecutionContext]
     ) -> tuple[List[Any], Dict[str, Any]]:
         """Execute with retry and backoff policy."""
         outputs = []
@@ -319,28 +324,33 @@ class Layer:
                     last_error = e
                     if attempt < self.layer_config.max_retries:
                         # Wait with exponential backoff
-                        delay = self.layer_config.retry_delay_seconds * (2 ** attempt)
+                        delay = self.layer_config.retry_delay_seconds * (2**attempt)
                         await asyncio.sleep(delay)
 
             if not success:
-                node_results[node.node_id] = {"success": False, "error": str(last_error)}
+                node_results[node.node_id] = {
+                    "success": False,
+                    "error": str(last_error),
+                }
                 if self.layer_config.error_policy == ErrorPolicy.RETRY_WITH_BACKOFF:
                     # Still fail if retries exhausted
-                    raise OperatorError(f"Node {node.node_id} failed after {self.layer_config.max_retries} retries: {last_error}")
+                    raise OperatorError(
+                        f"Node {node.node_id} failed after {self.layer_config.max_retries} retries: {last_error}"
+                    )
 
         return outputs, node_results
 
     async def _execute_skip_continue(
-        self,
-        node_inputs: List[Any],
-        node_contexts: List[ExecutionContext]
+        self, node_inputs: List[Any], node_contexts: List[ExecutionContext]
     ) -> tuple[List[Any], Dict[str, Any]]:
         """Execute with skip and continue policy."""
         tasks = []
-        for i, (node, node_input, context) in enumerate(zip(self.nodes, node_inputs, node_contexts)):
+        for i, (node, node_input, context) in enumerate(
+            zip(self.nodes, node_inputs, node_contexts)
+        ):
             task = asyncio.create_task(
                 self._safe_execute(node, node_input, context),
-                name=f"node_{i}_{node.node_id}"
+                name=f"node_{i}_{node.node_id}",
             )
             tasks.append(task)
 
@@ -360,14 +370,14 @@ class Layer:
         return outputs, node_results
 
     async def _execute_return_partial(
-        self,
-        node_inputs: List[Any],
-        node_contexts: List[ExecutionContext]
+        self, node_inputs: List[Any], node_contexts: List[ExecutionContext]
     ) -> tuple[List[Any], Dict[str, Any]]:
         """Execute with return partial results policy."""
         return await self._execute_skip_continue(node_inputs, node_contexts)
 
-    async def _safe_execute(self, node: Node, node_input: Any, context: ExecutionContext) -> Any:
+    async def _safe_execute(
+        self, node: Node, node_input: Any, context: ExecutionContext
+    ) -> Any:
         """Safely execute a node, catching exceptions."""
         try:
             return await node.execute(node_input, execution_context=context)
@@ -379,7 +389,8 @@ class Layer:
         """Get execution statistics for this layer."""
         avg_execution_time = (
             self._total_execution_time / self._execution_count
-            if self._execution_count > 0 else 0.0
+            if self._execution_count > 0
+            else 0.0
         )
 
         return {
@@ -389,7 +400,7 @@ class Layer:
             "total_execution_time": self._total_execution_time,
             "average_execution_time": avg_execution_time,
             "last_result": self._last_result.__dict__ if self._last_result else None,
-            "error_policy": self.layer_config.error_policy.value
+            "error_policy": self.layer_config.error_policy.value,
         }
 
     def add_node(self, node: Node) -> None:
@@ -405,7 +416,7 @@ class Layer:
         return False
 
     @classmethod
-    def from_nodes(cls, *nodes: Node, **kwargs) -> 'Layer':
+    def from_nodes(cls, *nodes: Node, **kwargs) -> "Layer":
         """Factory method to create a layer from multiple nodes."""
         return cls(nodes=list(nodes), **kwargs)
 
@@ -414,8 +425,8 @@ class Layer:
         cls,
         operator_names: List[str],
         layer_config: Optional[LayerConfig] = None,
-        **node_kwargs
-    ) -> 'Layer':
+        **node_kwargs,
+    ) -> "Layer":
         """Factory method to create a layer from operator names."""
         nodes = [Node(name, **node_kwargs) for name in operator_names]
         return cls(nodes=nodes, layer_config=layer_config)

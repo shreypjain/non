@@ -12,6 +12,7 @@ dependencies = [
     "structlog>=23.0.0",
     "tenacity>=8.0.0",
     "typing-extensions>=4.0.0",
+    "python-dotenv>=1.1.1",
 ]
 requires-python = ">=3.9"
 

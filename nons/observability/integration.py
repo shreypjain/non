@@ -11,15 +11,15 @@ from typing import Any, Dict, List, Optional, Union
 from contextlib import asynccontextmanager
 
 from .tracing import (
-    TraceManager, Span, SpanKind, SpanStatus,
-    get_tracer, async_traced_operation
+    TraceManager,
+    Span,
+    SpanKind,
+    SpanStatus,
+    get_tracer,
+    async_traced_operation,
 )
-from .logging import (
-    LogManager, LogLevel, get_logger, get_log_manager
-)
-from .metrics import (
-    MetricsCollector, MetricType, get_metrics_collector
-)
+from .logging import LogManager, LogLevel, get_logger, get_log_manager
+from .metrics import MetricsCollector, MetricType, get_metrics_collector
 
 
 class ObservabilityManager:
@@ -33,7 +33,7 @@ class ObservabilityManager:
         self,
         enable_tracing: bool = True,
         enable_logging: bool = True,
-        enable_metrics: bool = True
+        enable_metrics: bool = True,
     ):
         self.tracer = TraceManager(enable_tracing=enable_tracing)
         self.log_manager = LogManager(enable_logging=enable_logging)
@@ -48,7 +48,7 @@ class ObservabilityManager:
         kind: SpanKind,
         component_type: str = "",
         component_id: str = "",
-        **metadata
+        **metadata,
     ) -> Span:
         """
         Start a new traced operation with automatic logging and metrics.
@@ -61,7 +61,7 @@ class ObservabilityManager:
             kind=kind,
             component_type=component_type,
             component_id=component_id,
-            **metadata
+            **metadata,
         )
 
         # Set trace context for logging
@@ -74,7 +74,7 @@ class ObservabilityManager:
             f"Starting {operation_name}",
             component_type=component_type,
             component_id=component_id,
-            operation_name=operation_name
+            operation_name=operation_name,
         )
 
         # Record start metric
@@ -83,7 +83,7 @@ class ObservabilityManager:
             trace_id=span.trace_id,
             span_id=span.span_id,
             component_type=component_type,
-            component_id=component_id
+            component_id=component_id,
         )
 
         return span
@@ -93,7 +93,7 @@ class ObservabilityManager:
         span: Span,
         status: Optional[SpanStatus] = None,
         result: Optional[Any] = None,
-        error: Optional[Exception] = None
+        error: Optional[Exception] = None,
     ) -> None:
         """
         Finish an operation with automatic logging and metrics.
@@ -119,14 +119,14 @@ class ObservabilityManager:
                 component_type=component_type,
                 component_id=component_id,
                 error_type=type(error).__name__,
-                error_message=str(error)
+                error_message=str(error),
             )
         else:
             logger.info(
                 f"Completed {operation_name}",
                 component_type=component_type,
                 component_id=component_id,
-                duration_ms=span.duration_ms
+                duration_ms=span.duration_ms,
             )
 
         # Record completion metrics
@@ -136,7 +136,7 @@ class ObservabilityManager:
             trace_id=span.trace_id,
             span_id=span.span_id,
             component_type=component_type,
-            component_id=component_id
+            component_id=component_id,
         )
 
         if span.duration_ms:
@@ -146,7 +146,7 @@ class ObservabilityManager:
                 trace_id=span.trace_id,
                 span_id=span.span_id,
                 component_type=component_type,
-                component_id=component_id
+                component_id=component_id,
             )
 
         # Clear trace context
@@ -159,14 +159,14 @@ class ObservabilityManager:
         token_count: int,
         cost_usd: float,
         provider: str = "",
-        model: str = ""
+        model: str = "",
     ) -> None:
         """Record cost and token metrics with trace correlation."""
         base_labels = {
             "provider": provider,
             "model": model,
             "component_type": span.component_type,
-            "component_id": span.component_id
+            "component_id": span.component_id,
         }
 
         # Record token metrics
@@ -175,7 +175,7 @@ class ObservabilityManager:
             token_count,
             trace_id=span.trace_id,
             span_id=span.span_id,
-            labels=base_labels
+            labels=base_labels,
         )
 
         # Record cost metrics
@@ -184,16 +184,18 @@ class ObservabilityManager:
             cost_usd,
             trace_id=span.trace_id,
             span_id=span.span_id,
-            labels=base_labels
+            labels=base_labels,
         )
 
         # Update span with cost/token info
-        span.add_tags({
-            "tokens": token_count,
-            "cost_usd": cost_usd,
-            "provider": provider,
-            "model": model
-        })
+        span.add_tags(
+            {
+                "tokens": token_count,
+                "cost_usd": cost_usd,
+                "provider": provider,
+                "model": model,
+            }
+        )
 
         # Log cost information
         logger = self.log_manager.get_logger(f"nons.{span.component_type}")
@@ -204,7 +206,7 @@ class ObservabilityManager:
             tokens=token_count,
             cost_usd=cost_usd,
             provider=provider,
-            model=model
+            model=model,
         )
 
     @asynccontextmanager
@@ -214,7 +216,7 @@ class ObservabilityManager:
         kind: SpanKind,
         component_type: str = "",
         component_id: str = "",
-        **metadata
+        **metadata,
     ):
         """Async context manager for automatic operation tracing."""
         span = self.start_operation(
@@ -222,7 +224,7 @@ class ObservabilityManager:
             kind=kind,
             component_type=component_type,
             component_id=component_id,
-            **metadata
+            **metadata,
         )
 
         try:
@@ -233,9 +235,7 @@ class ObservabilityManager:
             raise
 
     def export_all_data(
-        self,
-        since: Optional[float] = None,
-        trace_id: Optional[str] = None
+        self, since: Optional[float] = None, trace_id: Optional[str] = None
     ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Export all observability data in database-ready format.
@@ -246,8 +246,10 @@ class ObservabilityManager:
         """
         return {
             "spans": self.tracer.export_spans(trace_id=trace_id, since=since),
-            "logs": self.log_manager.export_logs(trace_id=trace_id, since=since, format="dict"),
-            "metrics": self.metrics_collector.export_metrics(since=since)
+            "logs": self.log_manager.export_logs(
+                trace_id=trace_id, since=since, format="dict"
+            ),
+            "metrics": self.metrics_collector.export_metrics(since=since),
         }
 
     def get_trace_summary(self, trace_id: str) -> Dict[str, Any]:
@@ -262,7 +264,9 @@ class ObservabilityManager:
         # Calculate trace statistics
         start_time = min(span.start_time for span in spans if span.start_time)
         end_time = max(span.end_time for span in spans if span.end_time)
-        total_duration = (end_time - start_time) * 1000 if end_time and start_time else 0
+        total_duration = (
+            (end_time - start_time) * 1000 if end_time and start_time else 0
+        )
 
         # Count spans by status
         span_counts = {}
@@ -290,7 +294,7 @@ class ObservabilityManager:
             "total_tokens": total_tokens,
             "start_time": start_time,
             "end_time": end_time,
-            "success": span_counts.get("error", 0) == 0
+            "success": span_counts.get("error", 0) == 0,
         }
 
     def clear_all_data(self) -> Dict[str, int]:
@@ -298,7 +302,7 @@ class ObservabilityManager:
         return {
             "spans_cleared": self.tracer.clear_completed_spans(),
             "logs_cleared": self.log_manager.clear_logs(),
-            "metrics_cleared": self.metrics_collector.clear_metrics()
+            "metrics_cleared": self.metrics_collector.clear_metrics(),
         }
 
     def get_stats(self) -> Dict[str, Any]:
@@ -306,10 +310,10 @@ class ObservabilityManager:
         return {
             "tracing": {
                 "active_spans": len(self.tracer.get_active_spans()),
-                "completed_spans": len(self.tracer.get_completed_spans())
+                "completed_spans": len(self.tracer.get_completed_spans()),
             },
             "logging": self.log_manager.get_stats(),
-            "metrics": self.metrics_collector.get_stats()
+            "metrics": self.metrics_collector.get_stats(),
         }
 
 
@@ -328,14 +332,14 @@ def get_observability() -> ObservabilityManager:
 def configure_observability(
     enable_tracing: bool = True,
     enable_logging: bool = True,
-    enable_metrics: bool = True
+    enable_metrics: bool = True,
 ) -> ObservabilityManager:
     """Configure global observability."""
     global _observability_manager
     _observability_manager = ObservabilityManager(
         enable_tracing=enable_tracing,
         enable_logging=enable_logging,
-        enable_metrics=enable_metrics
+        enable_metrics=enable_metrics,
     )
     return _observability_manager
 
@@ -343,6 +347,7 @@ def configure_observability(
 # Convenience decorators and context managers
 def trace_network_operation(operation_name: str, network_id: str = ""):
     """Decorator for network-level operations."""
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
             obs = get_observability()
@@ -350,16 +355,19 @@ def trace_network_operation(operation_name: str, network_id: str = ""):
                 operation_name=operation_name,
                 kind=SpanKind.NETWORK,
                 component_type="network",
-                component_id=network_id
+                component_id=network_id,
             ) as span:
                 result = await func(*args, **kwargs)
                 return result
+
         return wrapper
+
     return decorator
 
 
 def trace_layer_operation(operation_name: str, layer_id: str = ""):
     """Decorator for layer-level operations."""
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
             obs = get_observability()
@@ -367,16 +375,19 @@ def trace_layer_operation(operation_name: str, layer_id: str = ""):
                 operation_name=operation_name,
                 kind=SpanKind.LAYER,
                 component_type="layer",
-                component_id=layer_id
+                component_id=layer_id,
             ) as span:
                 result = await func(*args, **kwargs)
                 return result
+
         return wrapper
+
     return decorator
 
 
 def trace_node_operation(operation_name: str, node_id: str = ""):
     """Decorator for node-level operations."""
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
             obs = get_observability()
@@ -384,9 +395,11 @@ def trace_node_operation(operation_name: str, node_id: str = ""):
                 operation_name=operation_name,
                 kind=SpanKind.NODE,
                 component_type="node",
-                component_id=node_id
+                component_id=node_id,
             ) as span:
                 result = await func(*args, **kwargs)
                 return result
+
         return wrapper
+
     return decorator

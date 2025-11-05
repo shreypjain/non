@@ -17,7 +17,7 @@ import sys
 import os
 
 # Add the nons package to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Import NoN components
 from nons.core.node import Node
@@ -32,14 +32,14 @@ async def demo_basic_operators():
     print("=== Basic Operator Demo ===")
 
     # Create individual nodes
-    transform_node = Node('transform')
-    generate_node = Node('generate')
-    condense_node = Node('condense')
+    transform_node = Node("transform")
+    generate_node = Node("generate")
+    condense_node = Node("condense")
 
     print(f"Created nodes: {transform_node}, {generate_node}, {condense_node}")
 
     # Test individual operator execution
-    result1 = await generate_node.execute('Write a short poem about AI')
+    result1 = await generate_node.execute("Write a short poem about AI")
     print(f"Generate result: {result1}")
 
     result2 = await condense_node.execute(result1)
@@ -52,16 +52,12 @@ async def demo_parallel_layer():
     print("=== Parallel Layer Demo ===")
 
     # Create multiple nodes for parallel execution
-    nodes = [
-        Node('generate'),
-        Node('generate'),
-        Node('generate')
-    ]
+    nodes = [Node("generate"), Node("generate"), Node("generate")]
 
     # Create layer with skip_and_continue policy for graceful error handling
     config = LayerConfig(
         error_policy=ErrorPolicy.SKIP_AND_CONTINUE,
-        min_success_threshold=0.7  # Require 70% success rate
+        min_success_threshold=0.7,  # Require 70% success rate
     )
 
     layer = Layer(nodes, layer_config=config)
@@ -84,11 +80,13 @@ async def demo_sequential_network():
 
     # Create a network using the convenient factory method
     # This creates: generate -> condense -> generate pipeline
-    network = NoN.from_operators([
-        'generate',    # Layer 1: Generate initial content
-        'condense',    # Layer 2: Condense the generated content
-        'generate'     # Layer 3: Generate something new based on condensed content
-    ])
+    network = NoN.from_operators(
+        [
+            "generate",  # Layer 1: Generate initial content
+            "condense",  # Layer 2: Condense the generated content
+            "generate",  # Layer 3: Generate something new based on condensed content
+        ]
+    )
 
     print(f"Created network: {network}")
 
@@ -114,11 +112,13 @@ async def demo_complex_network():
     # Layer 1: Single generate node
     # Layer 2: Three parallel generate nodes
     # Layer 3: Single condense node
-    network = NoN.from_operators([
-        'generate',                        # Layer 1: Single node
-        ['generate', 'generate', 'generate'], # Layer 2: Parallel nodes
-        'condense'                         # Layer 3: Single node
-    ])
+    network = NoN.from_operators(
+        [
+            "generate",  # Layer 1: Single node
+            ["generate", "generate", "generate"],  # Layer 2: Parallel nodes
+            "condense",  # Layer 3: Single node
+        ]
+    )
 
     print(f"Created complex network: {network}")
 
@@ -135,7 +135,7 @@ async def demo_complex_network():
     print(f"Total executions: {stats['execution_count']}")
     print(f"Average execution time: {stats['average_execution_time']:.3f}s")
 
-    for layer_stat in stats['layer_stats']:
+    for layer_stat in stats["layer_stats"]:
         print(f"  Layer {layer_stat['layer_index']}: {layer_stat['node_count']} nodes")
     print()
 
@@ -146,7 +146,7 @@ async def demo_error_handling():
 
     # Create a layer with an operator that will fail (validate needs parameters)
     try:
-        nodes = [Node('generate'), Node('validate')]  # validate will fail
+        nodes = [Node("generate"), Node("validate")]  # validate will fail
         config = LayerConfig(error_policy=ErrorPolicy.SKIP_AND_CONTINUE)
         layer = Layer(nodes, layer_config=config)
 

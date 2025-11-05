@@ -9,10 +9,19 @@ import pytest
 from typing import List, Dict, Any
 
 from nons.operators.deterministic import (
-    _canon, _hash, DeterministicOp,
-    PackCandidates, ExtractWinners, Majority, SelectById,
-    Candidate, PackedCandidates,
-    pack_candidates_op, extract_winners_op, majority_op, select_by_id_op
+    _canon,
+    _hash,
+    DeterministicOp,
+    PackCandidates,
+    ExtractWinners,
+    Majority,
+    SelectById,
+    Candidate,
+    PackedCandidates,
+    pack_candidates_op,
+    extract_winners_op,
+    majority_op,
+    select_by_id_op,
 )
 
 
@@ -58,7 +67,7 @@ class TestContentHashing:
             "list": [1, 2, {"inner": "test"}],
             "string": "test",
             "null": None,
-            "bool": True
+            "bool": True,
         }
 
         hash_result = _hash(complex_data)
@@ -154,9 +163,9 @@ class TestPackCandidates:
         input_data = {
             "candidates": [
                 {"id": "test1", "content": "content1", "score": 0.8},
-                "raw_content2"
+                "raw_content2",
             ],
-            "metadata": {"source": "test"}
+            "metadata": {"source": "test"},
         }
 
         result = op(input_data)
@@ -181,7 +190,7 @@ class TestPackCandidates:
         op = PackCandidates()
         input_data = [
             {"content": "result1", "score": 0.9},
-            {"content": "result2", "score": 0.7}
+            {"content": "result2", "score": 0.7},
         ]
 
         result = op(input_data)
@@ -201,7 +210,7 @@ class TestExtractWinners:
                 Candidate(id="c1", content="content1", score=0.9),
                 Candidate(id="c2", content="content2", score=0.7),
                 Candidate(id="c3", content="content3", score=0.5),
-                Candidate(id="c4", content="content4", score=0.3)
+                Candidate(id="c4", content="content4", score=0.3),
             ]
         )
 
@@ -239,7 +248,7 @@ class TestExtractWinners:
             candidates=[
                 Candidate(id="c1", content="content1"),  # No score
                 Candidate(id="c2", content="content2", score=0.8),
-                Candidate(id="c3", content="content3")   # No score
+                Candidate(id="c3", content="content3"),  # No score
             ]
         )
 
@@ -262,7 +271,7 @@ class TestExtractWinners:
         input_dict = {
             "candidates": [
                 {"id": "c1", "content": "content1", "score": 0.9},
-                {"id": "c2", "content": "content2", "score": 0.7}
+                {"id": "c2", "content": "content2", "score": 0.7},
             ]
         }
 
@@ -281,7 +290,7 @@ class TestMajority:
             Candidate(id="c1", content="answer_A", score=0.8),
             Candidate(id="c2", content="answer_A", score=0.7),  # Same content
             Candidate(id="c3", content="answer_B", score=0.9),
-            Candidate(id="c4", content="answer_C", score=0.6)
+            Candidate(id="c4", content="answer_C", score=0.6),
         ]
 
     def test_simple_majority(self):
@@ -353,7 +362,7 @@ class TestSelectById:
             Candidate(id="c1", content="content1"),
             Candidate(id="c2", content="content2"),
             Candidate(id="c3", content="content3"),
-            Candidate(id="c4", content="content4")
+            Candidate(id="c4", content="content4"),
         ]
 
     def test_select_single_id(self):
@@ -428,7 +437,7 @@ class TestRegisteredOperators:
         packed = PackedCandidates(
             candidates=[
                 Candidate(id="c1", content="content1", score=0.9),
-                Candidate(id="c2", content="content2", score=0.7)
+                Candidate(id="c2", content="content2", score=0.7),
             ]
         )
 
@@ -443,7 +452,7 @@ class TestRegisteredOperators:
         candidates = [
             Candidate(id="c1", content="answer_A"),
             Candidate(id="c2", content="answer_A"),
-            Candidate(id="c3", content="answer_B")
+            Candidate(id="c3", content="answer_B"),
         ]
 
         result = await majority_op(candidates, strategy="simple")
@@ -456,7 +465,7 @@ class TestRegisteredOperators:
         """Test the registered select_by_id operator."""
         candidates = [
             Candidate(id="c1", content="content1"),
-            Candidate(id="c2", content="content2")
+            Candidate(id="c2", content="content2"),
         ]
 
         result = await select_by_id_op(candidates, ["c1"])
@@ -475,7 +484,7 @@ class TestIntegration:
             "Response A with high quality",
             "Response B with medium quality",
             "Response A with high quality",  # Duplicate
-            "Response C with low quality"
+            "Response C with low quality",
         ]
 
         # Step 1: Pack candidates
@@ -535,7 +544,9 @@ class TestIntegration:
 
         # Candidate hashes should be the same
         for i in range(len(result1.candidates)):
-            assert _hash(result1.candidates[i].content) == _hash(result2.candidates[i].content)
+            assert _hash(result1.candidates[i].content) == _hash(
+                result2.candidates[i].content
+            )
 
     def test_large_candidate_set(self):
         """Test performance with larger candidate sets."""

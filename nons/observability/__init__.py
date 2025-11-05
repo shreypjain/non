@@ -16,5 +16,5 @@ __all__ = [
     "LogManager",
     "get_logger",
     "MetricsCollector",
-    "get_metrics_collector"
+    "get_metrics_collector",
 ]

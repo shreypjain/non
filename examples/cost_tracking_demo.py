@@ -11,13 +11,17 @@ import sys
 import os
 
 # Add the nons package to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from nons.core.node import Node
 from nons.core.layer import Layer
 from nons.core.network import NoN
 from nons.core.types import (
-    ModelConfig, ModelProvider, TokenUsage, CostInfo, ExecutionMetrics
+    ModelConfig,
+    ModelProvider,
+    TokenUsage,
+    CostInfo,
+    ExecutionMetrics,
 )
 from nons.utils.providers import create_provider, test_provider
 import nons.operators.base
@@ -34,14 +38,14 @@ async def demo_provider_integration():
             provider=ModelProvider.OPENAI,
             model_name="gpt-4",
             temperature=0.7,
-            max_tokens=1000
+            max_tokens=1000,
         ),
         ModelConfig(
             provider=ModelProvider.ANTHROPIC,
             model_name="claude-3-5-sonnet-20241022",
             temperature=0.7,
-            max_tokens=1000
-        )
+            max_tokens=1000,
+        ),
     ]
 
     for config in configs:
@@ -58,7 +62,7 @@ async def demo_provider_integration():
             print(f"  ❌ Connection failed: {result['error']}")
             print(f"  📝 Note: Using mock provider instead")
 
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
 
 async def demo_node_cost_tracking():
@@ -67,7 +71,7 @@ async def demo_node_cost_tracking():
     print("=" * 50)
 
     # Create a node (will use mock provider due to no API keys in demo)
-    node = Node('generate')
+    node = Node("generate")
 
     print("Before execution:")
     print(node)
@@ -77,7 +81,7 @@ async def demo_node_cost_tracking():
     inputs = [
         "Write a short story about AI",
         "Create a business plan for a startup",
-        "Explain quantum computing"
+        "Explain quantum computing",
     ]
 
     for i, input_text in enumerate(inputs, 1):
@@ -102,10 +106,12 @@ async def demo_node_cost_tracking():
     print(f"  Total executions: {stats['execution_count']}")
     print(f"  Total tokens: {stats['total_tokens']['total_tokens']:,}")
     print(f"  Total cost: ${stats['total_cost_usd']:.6f}")
-    print(f"  Average tokens per execution: {stats['average_tokens_per_execution']:.1f}")
+    print(
+        f"  Average tokens per execution: {stats['average_tokens_per_execution']:.1f}"
+    )
     print(f"  Average cost per execution: ${stats['average_cost_per_execution']:.6f}")
 
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
 
 async def demo_network_cost_aggregation():
@@ -114,11 +120,13 @@ async def demo_network_cost_aggregation():
     print("=" * 50)
 
     # Create a network with multiple layers
-    network = NoN.from_operators([
-        'generate',                    # Layer 0
-        ['generate', 'condense'],      # Layer 1 (parallel)
-        'generate'                     # Layer 2
-    ])
+    network = NoN.from_operators(
+        [
+            "generate",  # Layer 0
+            ["generate", "condense"],  # Layer 1 (parallel)
+            "generate",  # Layer 2
+        ]
+    )
 
     print("Network architecture:")
     print(network)
@@ -152,7 +160,9 @@ async def demo_network_cost_aggregation():
             layer_cost += node_cost
             layer_tokens += node_tokens
 
-            print(f"    Node {j} ({node.operator_name}): {node_tokens:,} tokens, ${node_cost:.6f}")
+            print(
+                f"    Node {j} ({node.operator_name}): {node_tokens:,} tokens, ${node_cost:.6f}"
+            )
 
         print(f"    Layer {i} Total: {layer_tokens:,} tokens, ${layer_cost:.6f}")
         print()
@@ -162,7 +172,7 @@ async def demo_network_cost_aggregation():
     print(f"  Total Cost: ${total_cost:.6f}")
     print(f"  Nodes Executed: {sum(len(layer.nodes) for layer in network.layers)}")
 
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
 
 async def demo_cost_optimization():
@@ -172,24 +182,33 @@ async def demo_cost_optimization():
 
     # Compare different model configurations
     configs = [
-        ("GPT-4 (High-performance)", ModelConfig(
-            provider=ModelProvider.OPENAI,
-            model_name="gpt-4",
-            temperature=0.7,
-            max_tokens=500
-        )),
-        ("GPT-3.5-Turbo (Cost-effective)", ModelConfig(
-            provider=ModelProvider.OPENAI,
-            model_name="gpt-3.5-turbo",
-            temperature=0.7,
-            max_tokens=500
-        )),
-        ("Claude Haiku (Budget)", ModelConfig(
-            provider=ModelProvider.ANTHROPIC,
-            model_name="claude-3-haiku-20240307",
-            temperature=0.7,
-            max_tokens=500
-        ))
+        (
+            "GPT-4 (High-performance)",
+            ModelConfig(
+                provider=ModelProvider.OPENAI,
+                model_name="gpt-4",
+                temperature=0.7,
+                max_tokens=500,
+            ),
+        ),
+        (
+            "GPT-3.5-Turbo (Cost-effective)",
+            ModelConfig(
+                provider=ModelProvider.OPENAI,
+                model_name="gpt-3.5-turbo",
+                temperature=0.7,
+                max_tokens=500,
+            ),
+        ),
+        (
+            "Claude Haiku (Budget)",
+            ModelConfig(
+                provider=ModelProvider.ANTHROPIC,
+                model_name="claude-3-haiku-20240307",
+                temperature=0.7,
+                max_tokens=500,
+            ),
+        ),
     ]
 
     prompt = "Explain the benefits of renewable energy in 100 words"
@@ -198,7 +217,7 @@ async def demo_cost_optimization():
     print()
 
     for name, config in configs:
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
         # Execute with the same prompt
         result = await node.execute(prompt)
@@ -219,15 +238,15 @@ async def demo_cost_optimization():
     print("  • Use GPT-3.5-Turbo as a good balance of cost and performance")
     print("  • Reserve GPT-4 for complex reasoning tasks")
 
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
 
 async def main():
     """Run all cost tracking demonstrations."""
     print("💰 NoN COST & TOKEN TRACKING SHOWCASE")
-    print("="*50)
+    print("=" * 50)
     print("This demo showcases comprehensive cost and token tracking!")
-    print("="*50)
+    print("=" * 50)
     print()
 
     await demo_provider_integration()
@@ -236,12 +255,12 @@ async def main():
     await demo_cost_optimization()
 
     print("🎉 COST TRACKING DEMO COMPLETED!")
-    print("="*50)
+    print("=" * 50)
     print("✨ Comprehensive cost and token tracking at every level!")
     print("✨ Real-time cost monitoring for budget management!")
     print("✨ Detailed metrics for optimization and analysis!")
     print("✨ Support for OpenAI and Anthropic with accurate pricing!")
-    print("="*50)
+    print("=" * 50)
 
 
 if __name__ == "__main__":

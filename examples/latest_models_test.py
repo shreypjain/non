@@ -11,7 +11,7 @@ import sys
 import os
 
 # Add the nons package to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from nons.core.types import ModelConfig, ModelProvider
 from nons.utils.providers import test_provider
@@ -29,7 +29,6 @@ async def test_latest_anthropic_models():
         "claude-4-sonnet-20241022",
         "claude-4-sonnet-20241201",
         "claude-4-sonnet-20250101",
-
         # Sonnet 4.5 variants
         "claude-4.5-sonnet",
         "claude-4.5-sonnet-20241022",
@@ -37,7 +36,6 @@ async def test_latest_anthropic_models():
         "claude-4.5-sonnet-20250101",
         "claude-4-5-sonnet-20241022",
         "claude-4-5-sonnet-20241201",
-
         # Opus 4.1 variants
         "claude-4.1-opus",
         "claude-4-1-opus",
@@ -45,7 +43,6 @@ async def test_latest_anthropic_models():
         "claude-4.1-opus-20241201",
         "claude-4-1-opus-20241022",
         "claude-4-1-opus-20241201",
-
         # Other potential latest models
         "claude-4",
         "claude-4-opus",
@@ -53,7 +50,6 @@ async def test_latest_anthropic_models():
         "claude-3-5-sonnet-20241022",
         "claude-opus-4",
         "claude-opus-4.1",
-
         # Check if there are any 2025 models
         "claude-3-5-sonnet-20250101",
         "claude-3-5-haiku-20250101",
@@ -72,7 +68,7 @@ async def test_latest_anthropic_models():
             provider=ModelProvider.ANTHROPIC,
             model_name=model,
             temperature=0.7,
-            max_tokens=50
+            max_tokens=50,
         )
 
         result = await test_provider(config)
@@ -86,7 +82,7 @@ async def test_latest_anthropic_models():
             accessible_models.append(model)
             print()
         else:
-            error_type = "404" if "404" in result['error'] else "other"
+            error_type = "404" if "404" in result["error"] else "other"
             if error_type == "404":
                 print(f"  ❌ {model}: Not found")
             else:
@@ -125,7 +121,7 @@ async def test_model_capabilities():
         provider=ModelProvider.ANTHROPIC,
         model_name="claude-3-5-sonnet-20241022",
         temperature=0.7,
-        max_tokens=200
+        max_tokens=200,
     )
 
     test_prompts = [
@@ -133,7 +129,7 @@ async def test_model_capabilities():
         "Write a Python function to calculate fibonacci numbers",
         "Explain quantum computing in simple terms",
         "What's the capital of France?",
-        "Generate a JSON object with user data"
+        "Generate a JSON object with user data",
     ]
 
     for prompt in test_prompts:

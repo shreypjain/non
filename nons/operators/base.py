@@ -8,13 +8,26 @@ infinitely composable building blocks.
 
 from typing import List, Optional, Union, Any
 from ..core.types import (
-    Content, StructuredOutput,
-    TransformSpec, ExtractionCriteria, ClassificationSchema,
-    GenerationSpec, ValidationCriteria, ExpansionTopic,
-    SynthesisFocus, ComparisonDimensions, RoutingLogic,
-    Classification, ValidationResult, ComparisonAnalysis, RouteDecision
+    Content,
+    StructuredOutput,
+    TransformSpec,
+    ExtractionCriteria,
+    ClassificationSchema,
+    GenerationSpec,
+    ValidationCriteria,
+    ExpansionTopic,
+    SynthesisFocus,
+    ComparisonDimensions,
+    RoutingLogic,
+    Classification,
+    ValidationResult,
+    ComparisonAnalysis,
+    RouteDecision,
+    ModelConfig,
 )
 from .registry import operator
+from ..utils.providers import create_provider
+from ..core.config import get_default_model_config
 
 
 @operator(
@@ -24,12 +37,16 @@ from .registry import operator
         "examples": [
             "transform(content, 'convert to JSON format')",
             "transform(content, 'translate to Spanish')",
-            "transform(content, 'rewrite in formal tone')"
+            "transform(content, 'rewrite in formal tone')",
         ],
-        "tags": ["core", "formatting", "conversion"]
+        "tags": ["core", "formatting", "conversion"],
     }
 )
-async def transform(content: Content, transformation_type: TransformSpec) -> Content:
+async def transform(
+    content: Content,
+    transformation_type: TransformSpec,
+    model_config: Optional[ModelConfig] = None,
+) -> Content:
     """
     Reshapes input content according to transformation directive.
 
@@ -39,12 +56,11 @@ async def transform(content: Content, transformation_type: TransformSpec) -> Con
     Args:
         content: The input content to transform
         transformation_type: Specification of how to transform the content
+        model_config: Optional model configuration (uses default if not provided)
 
     Returns:
         Transformed content maintaining the same semantic meaning
     """
-    # This is a placeholder implementation that would be replaced
-    # with actual LLM calls in the execution runtime
     if isinstance(content, dict):
         content_str = str(content)
     else:
@@ -57,8 +73,14 @@ Content to transform:
 
 Provide only the transformed content without additional explanation."""
 
-    # This would be replaced with actual model execution
-    return f"[TRANSFORMED: {transformation_type}] {content_str}"
+    # Get model configuration and create provider
+    if model_config is None:
+        model_config = get_default_model_config()
+
+    provider = create_provider(model_config)
+    result, metrics = await provider.generate_completion(prompt)
+
+    return result
 
 
 @operator(
@@ -67,15 +89,16 @@ Provide only the transformed content without additional explanation."""
         "description": "Interweaves two concepts into unified context while maintaining fidelity",
         "examples": [
             "synthesize(report1, report2, 'focus on common themes')",
-            "synthesize(data, analysis, 'create unified narrative')"
+            "synthesize(data, analysis, 'create unified narrative')",
         ],
-        "tags": ["core", "fusion", "merging"]
+        "tags": ["core", "fusion", "merging"],
     }
 )
 async def synthesize(
     original_content: Content,
     new_content: Content,
-    synthesis_focus: Optional[SynthesisFocus] = None
+    synthesis_focus: Optional[SynthesisFocus] = None,
+    model_config: Optional[ModelConfig] = None,
 ) -> Content:
     """
     Interweaves two concepts into unified context.
@@ -87,6 +110,7 @@ async def synthesize(
         original_content: The base content to synthesize with
         new_content: The additional content to weave in
         synthesis_focus: Optional focus for the synthesis process
+        model_config: Optional model configuration (uses default if not provided)
 
     Returns:
         Synthesized content combining both inputs
@@ -104,8 +128,13 @@ New content:
 
 Provide the synthesized result without additional explanation."""
 
-    # Placeholder implementation
-    return f"[SYNTHESIZED{focus_instruction}] {original_content} + {new_content}"
+    if model_config is None:
+        model_config = get_default_model_config()
+
+    provider = create_provider(model_config)
+    result, metrics = await provider.generate_completion(prompt)
+
+    return result
 
 
 @operator(
@@ -114,12 +143,17 @@ Provide the synthesized result without additional explanation."""
         "description": "Multiplicative growth of information depth around a specific topic",
         "examples": [
             "expand(summary, 'technical details', 3)",
-            "expand(outline, 'market analysis', 2)"
+            "expand(outline, 'market analysis', 2)",
         ],
-        "tags": ["core", "elaboration", "depth"]
+        "tags": ["core", "elaboration", "depth"],
     }
 )
-async def expand(content: Content, expansion_topic: ExpansionTopic, depth_level: int) -> Content:
+async def expand(
+    content: Content,
+    expansion_topic: ExpansionTopic,
+    depth_level: int,
+    model_config: Optional[ModelConfig] = None,
+) -> Content:
     """
     Multiplicative growth of information depth around a specific topic.
 
@@ -129,6 +163,7 @@ async def expand(content: Content, expansion_topic: ExpansionTopic, depth_level:
         content: The content to expand upon
         expansion_topic: The specific topic or angle to expand
         depth_level: Integer indicating depth of expansion (1-5)
+        model_config: Optional model configuration (uses default if not provided)
 
     Returns:
         Expanded content with greater detail on the specified topic
@@ -138,7 +173,7 @@ async def expand(content: Content, expansion_topic: ExpansionTopic, depth_level:
         2: "provide moderate detail",
         3: "provide comprehensive detail",
         4: "provide extensive analysis",
-        5: "provide exhaustive coverage"
+        5: "provide exhaustive coverage",
     }.get(depth_level, "provide detail")
 
     prompt = f"""Expand the following content on the topic "{expansion_topic}".
@@ -152,8 +187,13 @@ Depth level: {depth_level}
 
 Provide the expanded content without additional explanation."""
 
-    # Placeholder implementation
-    return f"[EXPANDED: {expansion_topic} (depth {depth_level})] {content}"
+    if model_config is None:
+        model_config = get_default_model_config()
+
+    provider = create_provider(model_config)
+    result, metrics = await provider.generate_completion(prompt)
+
+    return result
 
 
 @operator(
@@ -162,15 +202,16 @@ Provide the expanded content without additional explanation."""
         "description": "Distills content to essential components with understanding, not truncation",
         "examples": [
             "condense(report, target_length=500)",
-            "condense(analysis, preservation_priority='key findings')"
+            "condense(analysis, preservation_priority='key findings')",
         ],
-        "tags": ["core", "summarization", "compression"]
+        "tags": ["core", "summarization", "compression"],
     }
 )
 async def condense(
     content: Content,
     target_length: Optional[int] = None,
-    preservation_priority: Optional[str] = None
+    preservation_priority: Optional[str] = None,
+    model_config: Optional[ModelConfig] = None,
 ) -> Content:
     """
     Distills content to essential components.
@@ -182,12 +223,17 @@ async def condense(
         content: The content to condense
         target_length: Optional target length in characters/words
         preservation_priority: What aspects to prioritize preserving
+        model_config: Optional model configuration (uses default if not provided)
 
     Returns:
         Condensed content maintaining essential information
     """
-    length_instruction = f" to approximately {target_length} characters" if target_length else ""
-    priority_instruction = f" while prioritizing: {preservation_priority}" if preservation_priority else ""
+    length_instruction = (
+        f" to approximately {target_length} characters" if target_length else ""
+    )
+    priority_instruction = (
+        f" while prioritizing: {preservation_priority}" if preservation_priority else ""
+    )
 
     prompt = f"""Condense the following content{length_instruction}{priority_instruction}.
 Maintain all essential information and key insights while removing redundancy.
@@ -197,12 +243,12 @@ Content to condense:
 
 Provide the condensed content without additional explanation."""
 
-    # Placeholder implementation
-    result = f"[CONDENSED{length_instruction}{priority_instruction}] "
-    if target_length and len(str(content)) > target_length:
-        result += str(content)[:target_length//2] + "..."
-    else:
-        result += str(content)
+    if model_config is None:
+        model_config = get_default_model_config()
+
+    provider = create_provider(model_config)
+    result, metrics = await provider.generate_completion(prompt)
+
     return result
 
 
@@ -212,15 +258,16 @@ Provide the condensed content without additional explanation."""
         "description": "Surgical isolation of specific information matching extraction criteria",
         "examples": [
             "extract(document, 'all dates and times')",
-            "extract(text, 'key financial metrics', 'JSON')"
+            "extract(text, 'key financial metrics', 'JSON')",
         ],
-        "tags": ["core", "data-mining", "isolation"]
+        "tags": ["core", "data-mining", "isolation"],
     }
 )
 async def extract(
     content: Content,
     extraction_criteria: ExtractionCriteria,
-    output_format: Optional[str] = None
+    output_format: Optional[str] = None,
+    model_config: Optional[ModelConfig] = None,
 ) -> StructuredOutput[Any]:
     """
     Surgical isolation of specific information matching extraction criteria.
@@ -231,6 +278,7 @@ async def extract(
         content: The content to extract information from
         extraction_criteria: Specification of what to extract
         output_format: Optional format for the extracted data
+        model_config: Optional model configuration (uses default if not provided)
 
     Returns:
         StructuredOutput containing the extracted information
@@ -247,12 +295,15 @@ Extraction criteria: {extraction_criteria}
 
 Provide only the extracted information without additional explanation."""
 
-    # Placeholder implementation
-    extracted_data = f"[EXTRACTED: {extraction_criteria}] from content"
+    if model_config is None:
+        model_config = get_default_model_config()
+
+    provider = create_provider(model_config)
+    extracted_data, metrics = await provider.generate_completion(prompt)
 
     return StructuredOutput(
         data=extracted_data,
-        metadata={"extraction_criteria": extraction_criteria, "format": output_format}
+        metadata={"extraction_criteria": extraction_criteria, "format": output_format},
     )
 
 
@@ -262,15 +313,16 @@ Provide only the extracted information without additional explanation."""
         "description": "Categorical assignment into predefined or emergent classes",
         "examples": [
             "classify(text, 'sentiment: positive/negative/neutral')",
-            "classify(document, 'document type schema', confidence_threshold=0.8)"
+            "classify(document, 'document type schema', confidence_threshold=0.8)",
         ],
-        "tags": ["core", "categorization", "decision-boundary"]
+        "tags": ["core", "categorization", "decision-boundary"],
     }
 )
 async def classify(
     content: Content,
     classification_schema: ClassificationSchema,
-    confidence_threshold: Optional[float] = None
+    confidence_threshold: Optional[float] = None,
+    model_config: Optional[ModelConfig] = None,
 ) -> Classification:
     """
     Categorical assignment into predefined or emergent classes.
@@ -282,11 +334,14 @@ async def classify(
         content: The content to classify
         classification_schema: Schema defining categories and rules
         confidence_threshold: Minimum confidence level required
+        model_config: Optional model configuration (uses default if not provided)
 
     Returns:
         Classification result with category, confidence, and reasoning
     """
-    threshold_note = f" (minimum confidence: {confidence_threshold})" if confidence_threshold else ""
+    threshold_note = (
+        f" (minimum confidence: {confidence_threshold})" if confidence_threshold else ""
+    )
 
     prompt = f"""Classify the following content according to this schema: {classification_schema}
 Provide the category, confidence score (0-1), and brief reasoning{threshold_note}.
@@ -296,14 +351,29 @@ Content to classify:
 
 Classification schema: {classification_schema}
 
-Respond with: Category, Confidence, Reasoning"""
+Respond in the format: Category | Confidence | Reasoning"""
 
-    # Placeholder implementation - would be replaced with actual model classification
-    return Classification(
-        category="placeholder_category",
-        confidence=0.85,
-        reasoning=f"Classified based on {classification_schema}"
-    )
+    if model_config is None:
+        model_config = get_default_model_config()
+
+    provider = create_provider(model_config)
+    response, metrics = await provider.generate_completion(prompt)
+
+    # Parse response (simple parsing, could be enhanced with structured output)
+    parts = response.split("|")
+    if len(parts) >= 3:
+        category = parts[0].strip()
+        try:
+            confidence = float(parts[1].strip())
+        except ValueError:
+            confidence = 0.5
+        reasoning = parts[2].strip()
+    else:
+        category = response.strip()
+        confidence = 0.5
+        reasoning = "Parsed from LLM response"
+
+    return Classification(category=category, confidence=confidence, reasoning=reasoning)
 
 
 @operator(
@@ -312,16 +382,17 @@ Respond with: Category, Confidence, Reasoning"""
         "description": "Differential analysis between content pieces along specified dimensions",
         "examples": [
             "compare(doc1, doc2, 'technical accuracy')",
-            "compare(version1, version2, 'feature completeness', [baseline])"
+            "compare(version1, version2, 'feature completeness', [baseline])",
         ],
-        "tags": ["core", "analysis", "differential"]
+        "tags": ["core", "analysis", "differential"],
     }
 )
 async def compare(
     content_a: Content,
     content_b: Content,
     comparison_dimensions: Optional[ComparisonDimensions] = None,
-    additional_content: Optional[List[Content]] = None
+    additional_content: Optional[List[Content]] = None,
+    model_config: Optional[ModelConfig] = None,
 ) -> ComparisonAnalysis:
     """
     Differential analysis between content pieces along specified dimensions.
@@ -333,12 +404,19 @@ async def compare(
         content_b: Second content piece to compare
         comparison_dimensions: Optional dimensions to focus comparison on
         additional_content: Optional additional content pieces for context
+        model_config: Optional model configuration (uses default if not provided)
 
     Returns:
         ComparisonAnalysis with differences, similarities, and conclusion
     """
-    dimensions_note = f" focusing on: {comparison_dimensions}" if comparison_dimensions else ""
-    additional_note = f" with {len(additional_content)} additional context pieces" if additional_content else ""
+    dimensions_note = (
+        f" focusing on: {comparison_dimensions}" if comparison_dimensions else ""
+    )
+    additional_note = (
+        f" with {len(additional_content)} additional context pieces"
+        if additional_content
+        else ""
+    )
 
     prompt = f"""Compare these two pieces of content{dimensions_note}{additional_note}.
 Identify key differences, similarities, and provide an overall conclusion.
@@ -349,13 +427,59 @@ Content A:
 Content B:
 {content_b}
 
-Provide structured comparison: differences, similarities, conclusion."""
+Provide structured comparison in this format:
+DIFFERENCES:
+- [list differences, one per line]
 
-    # Placeholder implementation
+SIMILARITIES:
+- [list similarities, one per line]
+
+CONCLUSION:
+[provide conclusion]"""
+
+    if model_config is None:
+        model_config = get_default_model_config()
+
+    provider = create_provider(model_config)
+    response, metrics = await provider.generate_completion(prompt)
+
+    # Parse response (simple parsing)
+    differences = []
+    similarities = []
+    conclusion = ""
+
+    sections = response.split("SIMILARITIES:")
+    if len(sections) >= 2:
+        diff_section = sections[0].replace("DIFFERENCES:", "").strip()
+        differences = [
+            line.strip("- ").strip()
+            for line in diff_section.split("\n")
+            if line.strip().startswith("-")
+        ]
+
+        remaining = sections[1].split("CONCLUSION:")
+        if len(remaining) >= 2:
+            sim_section = remaining[0].strip()
+            similarities = [
+                line.strip("- ").strip()
+                for line in sim_section.split("\n")
+                if line.strip().startswith("-")
+            ]
+            conclusion = remaining[1].strip()
+        else:
+            similarities = [
+                line.strip("- ").strip()
+                for line in remaining[0].split("\n")
+                if line.strip().startswith("-")
+            ]
+
+    if not conclusion:
+        conclusion = "Comparison completed"
+
     return ComparisonAnalysis(
-        differences=[f"Difference based on {comparison_dimensions}" if comparison_dimensions else "General difference"],
-        similarities=[f"Similarity in content structure"],
-        conclusion=f"Comparison completed{dimensions_note}"
+        differences=differences if differences else ["No differences identified"],
+        similarities=similarities if similarities else ["No similarities identified"],
+        conclusion=conclusion,
     )
 
 
@@ -365,15 +489,16 @@ Provide structured comparison: differences, similarities, conclusion."""
         "description": "Pure creation of novel content from specifications without input dependency",
         "examples": [
             "generate('write a product roadmap', constraints='1 page')",
-            "generate('create test data', style_guide='JSON format')"
+            "generate('create test data', style_guide='JSON format')",
         ],
-        "tags": ["core", "creation", "generation"]
+        "tags": ["core", "creation", "generation"],
     }
 )
 async def generate(
     generation_specification: GenerationSpec,
     constraints: Optional[str] = None,
-    style_guide: Optional[str] = None
+    style_guide: Optional[str] = None,
+    model_config: Optional[ModelConfig] = None,
 ) -> Content:
     """
     Pure creation of novel content from specifications.
@@ -385,20 +510,25 @@ async def generate(
         generation_specification: Specification of what to generate
         constraints: Optional constraints on the generation
         style_guide: Optional style guide to follow
+        model_config: Optional model configuration (uses default if not provided)
 
     Returns:
         Generated content matching the specification
     """
-    constraints_note = f" with constraints: {constraints}" if constraints else ""
-    style_note = f" following style: {style_guide}" if style_guide else ""
+    constraints_note = f"\nConstraints: {constraints}" if constraints else ""
+    style_note = f"\nStyle guide: {style_guide}" if style_guide else ""
 
-    prompt = f"""Generate content according to this specification: {generation_specification}
-{constraints_note}{style_note}
+    prompt = f"""Generate content according to this specification: {generation_specification}{constraints_note}{style_note}
 
 Provide only the generated content without additional explanation."""
 
-    # Placeholder implementation
-    return f"[GENERATED: {generation_specification}]{constraints_note}{style_note}"
+    if model_config is None:
+        model_config = get_default_model_config()
+
+    provider = create_provider(model_config)
+    result, metrics = await provider.generate_completion(prompt)
+
+    return result
 
 
 @operator(
@@ -407,15 +537,16 @@ Provide only the generated content without additional explanation."""
         "description": "Truth-testing against validation criteria or external knowledge",
         "examples": [
             "validate(claim, 'factual accuracy', 'strict')",
-            "validate(code, 'syntax correctness', 'moderate')"
+            "validate(code, 'syntax correctness', 'moderate')",
         ],
-        "tags": ["core", "verification", "truth-testing"]
+        "tags": ["core", "verification", "truth-testing"],
     }
 )
 async def validate(
     content: Content,
     validation_criteria: ValidationCriteria,
-    strictness_level: str
+    strictness_level: str,
+    model_config: Optional[ModelConfig] = None,
 ) -> ValidationResult:
     """
     Truth-testing against validation criteria or external knowledge.
@@ -426,6 +557,7 @@ async def validate(
         content: The content to validate
         validation_criteria: Criteria to validate against
         strictness_level: Level of strictness (strict/moderate/lenient)
+        model_config: Optional model configuration (uses default if not provided)
 
     Returns:
         ValidationResult with validity, reasoning, and confidence
@@ -439,13 +571,30 @@ Content to validate:
 Validation criteria: {validation_criteria}
 Strictness: {strictness_level}
 
-Respond with: Valid/Invalid, Reasoning, Confidence (0-1)"""
+Respond in the format: Valid/Invalid | Reasoning | Confidence (0-1)"""
 
-    # Placeholder implementation
+    if model_config is None:
+        model_config = get_default_model_config()
+
+    provider = create_provider(model_config)
+    response, metrics = await provider.generate_completion(prompt)
+
+    # Parse response
+    parts = response.split("|")
+    if len(parts) >= 3:
+        is_valid = parts[0].strip().lower() in ["valid", "true", "yes"]
+        reasoning = parts[1].strip()
+        try:
+            confidence = float(parts[2].strip())
+        except ValueError:
+            confidence = 0.5
+    else:
+        is_valid = "valid" in response.lower()
+        reasoning = response.strip()
+        confidence = 0.5
+
     return ValidationResult(
-        is_valid=True,  # Would be determined by actual validation logic
-        validation_reasoning=f"Validated against {validation_criteria} with {strictness_level} strictness",
-        confidence=0.9
+        is_valid=is_valid, validation_reasoning=reasoning, confidence=confidence
     )
 
 
@@ -455,15 +604,16 @@ Respond with: Valid/Invalid, Reasoning, Confidence (0-1)"""
         "description": "Dynamic decision-making on information flow and execution paths",
         "examples": [
             "route(content, 'complexity-based routing', ['simple', 'complex', 'expert'])",
-            "route(query, 'model selection logic', ['gpt-4', 'claude', 'local'])"
+            "route(query, 'model selection logic', ['gpt-4', 'claude', 'local'])",
         ],
-        "tags": ["core", "control-flow", "decision-making"]
+        "tags": ["core", "control-flow", "decision-making"],
     }
 )
 async def route(
     content: Content,
     routing_logic: RoutingLogic,
-    available_paths: List[str]
+    available_paths: List[str],
+    model_config: Optional[ModelConfig] = None,
 ) -> RouteDecision:
     """
     Dynamic decision-making on information flow.
@@ -475,6 +625,7 @@ async def route(
         content: The content to base routing decision on
         routing_logic: Logic specification for routing decision
         available_paths: List of available paths to route to
+        model_config: Optional model configuration (uses default if not provided)
 
     Returns:
         RouteDecision with selected path, confidence, and reasoning
@@ -487,13 +638,35 @@ Content:
 Available paths: {', '.join(available_paths)}
 Routing logic: {routing_logic}
 
-Select the most appropriate path and provide confidence score (0-1) and reasoning."""
+Respond in the format: Selected_Path | Confidence (0-1) | Reasoning"""
 
-    # Placeholder implementation - would use actual routing logic
-    selected_path = available_paths[0] if available_paths else "default"
+    if model_config is None:
+        model_config = get_default_model_config()
+
+    provider = create_provider(model_config)
+    response, metrics = await provider.generate_completion(prompt)
+
+    # Parse response
+    parts = response.split("|")
+    if len(parts) >= 3:
+        selected_path = parts[0].strip()
+        try:
+            routing_confidence = float(parts[1].strip())
+        except ValueError:
+            routing_confidence = 0.5
+        reasoning = parts[2].strip()
+    else:
+        # Try to find matching path in response
+        selected_path = available_paths[0] if available_paths else "default"
+        for path in available_paths:
+            if path.lower() in response.lower():
+                selected_path = path
+                break
+        routing_confidence = 0.5
+        reasoning = response.strip()
 
     return RouteDecision(
         selected_path=selected_path,
-        routing_confidence=0.8,
-        reasoning=f"Selected {selected_path} based on {routing_logic}"
+        routing_confidence=routing_confidence,
+        reasoning=reasoning,
     )

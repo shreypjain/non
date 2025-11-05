@@ -11,7 +11,7 @@ import sys
 import os
 
 # Add the nons package to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from nons.core.node import Node
 from nons.core.layer import Layer
@@ -26,13 +26,13 @@ async def demo_mock_cost_tracking():
 
     # Create a node with OpenAI config (will fall back to mock)
     node = Node(
-        'generate',
+        "generate",
         model_config=ModelConfig(
             provider=ModelProvider.OPENAI,
             model_name="gpt-4",
             temperature=0.7,
-            max_tokens=1000
-        )
+            max_tokens=1000,
+        ),
     )
 
     print("Before execution:")
@@ -43,7 +43,7 @@ async def demo_mock_cost_tracking():
     inputs = [
         "Write a short story about AI",
         "Create a business plan for a startup",
-        "Explain quantum computing"
+        "Explain quantum computing",
     ]
 
     for i, input_text in enumerate(inputs, 1):
@@ -68,10 +68,12 @@ async def demo_mock_cost_tracking():
     print(f"  Total executions: {stats['execution_count']}")
     print(f"  Total tokens: {stats['total_tokens']['total_tokens']:,}")
     print(f"  Total cost: ${stats['total_cost_usd']:.6f}")
-    print(f"  Average tokens per execution: {stats['average_tokens_per_execution']:.1f}")
+    print(
+        f"  Average tokens per execution: {stats['average_tokens_per_execution']:.1f}"
+    )
     print(f"  Average cost per execution: ${stats['average_cost_per_execution']:.6f}")
 
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
 
 async def demo_network_cost_aggregation():
@@ -80,11 +82,13 @@ async def demo_network_cost_aggregation():
     print("=" * 50)
 
     # Create a network with multiple layers
-    network = NoN.from_operators([
-        'generate',                    # Layer 0
-        ['generate', 'condense'],      # Layer 1 (parallel)
-        'generate'                     # Layer 2
-    ])
+    network = NoN.from_operators(
+        [
+            "generate",  # Layer 0
+            ["generate", "condense"],  # Layer 1 (parallel)
+            "generate",  # Layer 2
+        ]
+    )
 
     print("Network architecture:")
     print(network)
@@ -118,7 +122,9 @@ async def demo_network_cost_aggregation():
             layer_cost += node_cost
             layer_tokens += node_tokens
 
-            print(f"    Node {j} ({node.operator_name}): {node_tokens:,} tokens, ${node_cost:.6f}")
+            print(
+                f"    Node {j} ({node.operator_name}): {node_tokens:,} tokens, ${node_cost:.6f}"
+            )
 
         print(f"    Layer {i} Total: {layer_tokens:,} tokens, ${layer_cost:.6f}")
         print()
@@ -128,26 +134,26 @@ async def demo_network_cost_aggregation():
     print(f"  Total Cost: ${total_cost:.6f}")
     print(f"  Nodes Executed: {sum(len(layer.nodes) for layer in network.layers)}")
 
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
 
 async def main():
     """Run mock cost tracking demonstrations."""
     print("💰 MOCK NoN COST & TOKEN TRACKING SHOWCASE")
-    print("="*50)
+    print("=" * 50)
     print("This demo showcases cost tracking using mock providers!")
-    print("="*50)
+    print("=" * 50)
     print()
 
     await demo_mock_cost_tracking()
     await demo_network_cost_aggregation()
 
     print("🎉 MOCK COST TRACKING DEMO COMPLETED!")
-    print("="*50)
+    print("=" * 50)
     print("✨ Cost and token tracking working with mock providers!")
     print("✨ Real-time cost monitoring ready for production APIs!")
     print("✨ Detailed metrics for optimization and analysis!")
-    print("="*50)
+    print("=" * 50)
 
 
 if __name__ == "__main__":

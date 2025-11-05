@@ -11,7 +11,7 @@ import sys
 import os
 
 # Add the nons package to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from nons.core.node import Node
 from nons.core.layer import Layer
@@ -26,18 +26,18 @@ async def demo_node_printing():
     print("=" * 50)
 
     # Create a node
-    node = Node('generate', additional_prompt_context="Be creative and inspirational")
+    node = Node("generate", additional_prompt_context="Be creative and inspirational")
 
     print("Before execution:")
     print(node)
     print()
 
     # Execute the node to show stats
-    await node.execute('Write a motivational quote')
+    await node.execute("Write a motivational quote")
 
     print("After execution:")
     print(node)
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
 
 async def demo_layer_printing():
@@ -46,16 +46,12 @@ async def demo_layer_printing():
     print("=" * 50)
 
     # Create a layer with multiple nodes
-    nodes = [
-        Node('generate'),
-        Node('condense'),
-        Node('generate')
-    ]
+    nodes = [Node("generate"), Node("condense"), Node("generate")]
 
     config = LayerConfig(
         error_policy=ErrorPolicy.SKIP_AND_CONTINUE,
         timeout_seconds=45.0,
-        min_success_threshold=0.8
+        min_success_threshold=0.8,
     )
 
     layer = Layer(nodes, layer_config=config)
@@ -73,7 +69,7 @@ async def demo_layer_printing():
 
     print("Layer Result:")
     print(result)
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
 
 async def demo_network_printing():
@@ -82,12 +78,14 @@ async def demo_network_printing():
     print("=" * 50)
 
     # Create a complex network
-    network = NoN.from_operators([
-        'generate',                        # Single operator layer
-        ['generate', 'condense'],          # Parallel operators layer
-        'condense',                        # Single operator layer
-        ['generate', 'generate', 'generate'] # Parallel same operators layer
-    ])
+    network = NoN.from_operators(
+        [
+            "generate",  # Single operator layer
+            ["generate", "condense"],  # Parallel operators layer
+            "condense",  # Single operator layer
+            ["generate", "generate", "generate"],  # Parallel same operators layer
+        ]
+    )
 
     print("Before execution:")
     print(network)
@@ -102,7 +100,7 @@ async def demo_network_printing():
 
     print("Network Result:")
     print(result)
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
 
 async def demo_comprehensive_workflow():
@@ -114,13 +112,15 @@ async def demo_comprehensive_workflow():
     print("-" * 35)
 
     # Build a sophisticated network step by step
-    network = NoN.from_operators([
-        'generate',                    # Content generation
-        ['expand', 'condense'],        # Parallel processing
-        'synthesize',                  # Combining results
-        ['classify', 'extract'],       # Analysis
-        'generate'                     # Final output
-    ])
+    network = NoN.from_operators(
+        [
+            "generate",  # Content generation
+            ["expand", "condense"],  # Parallel processing
+            "synthesize",  # Combining results
+            ["classify", "extract"],  # Analysis
+            "generate",  # Final output
+        ]
+    )
 
     print(network)
     print()
@@ -155,7 +155,7 @@ async def demo_comprehensive_workflow():
         print()
 
     print("✅ Comprehensive workflow completed successfully!")
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
 
 async def demo_error_handling_printing():
@@ -165,10 +165,9 @@ async def demo_error_handling_printing():
 
     try:
         # Create a network that will have mixed success/failure
-        network = NoN.from_operators([
-            'generate',
-            'validate'  # This will fail due to missing parameters
-        ])
+        network = NoN.from_operators(
+            ["generate", "validate"]  # This will fail due to missing parameters
+        )
 
         result = await network.forward("Test input")
 
@@ -183,15 +182,15 @@ async def demo_error_handling_printing():
         print()
 
     print("✅ Error handling demonstration complete!")
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
 
 async def main():
     """Run all pretty printing demonstrations."""
     print("🎨 NoN PRETTY PRINTING SHOWCASE")
-    print("="*50)
+    print("=" * 50)
     print("This demo showcases beautiful terminal output for all NoN components!")
-    print("="*50)
+    print("=" * 50)
     print()
 
     await demo_node_printing()
@@ -201,11 +200,11 @@ async def main():
     await demo_error_handling_printing()
 
     print("🎉 ALL DEMOS COMPLETED!")
-    print("="*50)
+    print("=" * 50)
     print("✨ Beautiful terminal output for debugging and monitoring!")
     print("✨ Clear visualization of network architecture and execution!")
     print("✨ Comprehensive statistics and result formatting!")
-    print("="*50)
+    print("=" * 50)
 
 
 if __name__ == "__main__":

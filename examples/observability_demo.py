@@ -12,14 +12,17 @@ import os
 import json
 
 # Add the nons package to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from nons.core.node import Node
 from nons.core.network import NoN
 from nons.core.types import ModelConfig, ModelProvider
 from nons.observability.integration import (
-    get_observability, configure_observability,
-    trace_network_operation, trace_layer_operation, trace_node_operation
+    get_observability,
+    configure_observability,
+    trace_network_operation,
+    trace_layer_operation,
+    trace_node_operation,
 )
 from nons.observability.tracing import SpanKind
 import nons.operators.base
@@ -32,9 +35,7 @@ async def demo_basic_observability():
 
     # Configure observability
     obs = configure_observability(
-        enable_tracing=True,
-        enable_logging=True,
-        enable_metrics=True
+        enable_tracing=True, enable_logging=True, enable_metrics=True
     )
 
     # Manual tracing example
@@ -42,19 +43,14 @@ async def demo_basic_observability():
         operation_name="demo_basic_operation",
         kind=SpanKind.NODE,
         component_type="demo",
-        component_id="basic_demo"
+        component_id="basic_demo",
     ) as span:
         # Add some metadata
-        span.add_tags({
-            "demo_type": "basic",
-            "version": "1.0"
-        })
+        span.add_tags({"demo_type": "basic", "version": "1.0"})
 
         # Record some metrics
         obs.metrics_collector.increment_counter(
-            "demo.operations.started",
-            component_type="demo",
-            component_id="basic_demo"
+            "demo.operations.started", component_type="demo", component_id="basic_demo"
         )
 
         # Simulate work with some logging
@@ -63,7 +59,7 @@ async def demo_basic_observability():
             "Performing basic operation",
             step="initialization",
             component_type="demo",
-            component_id="basic_demo"
+            component_id="basic_demo",
         )
 
         await asyncio.sleep(0.1)  # Simulate work
@@ -72,14 +68,14 @@ async def demo_basic_observability():
             "Basic operation completed",
             step="completion",
             component_type="demo",
-            component_id="basic_demo"
+            component_id="basic_demo",
         )
 
         # Record completion metrics
         obs.metrics_collector.increment_counter(
             "demo.operations.completed",
             component_type="demo",
-            component_id="basic_demo"
+            component_id="basic_demo",
         )
 
     print("✅ Basic observability operation completed")
@@ -98,64 +94,65 @@ async def demo_network_observability():
         operation_name="network_creation",
         kind=SpanKind.NETWORK,
         component_type="network",
-        component_id="demo_network"
+        component_id="demo_network",
     ) as span:
-        network = NoN.from_operators([
-            'generate',
-            ['generate', 'condense']
-        ])
+        network = NoN.from_operators(["generate", ["generate", "condense"]])
 
-        span.add_tags({
-            "layers": len(network.layers),
-            "total_nodes": sum(len(layer.nodes) for layer in network.layers)
-        })
+        span.add_tags(
+            {
+                "layers": len(network.layers),
+                "total_nodes": sum(len(layer.nodes) for layer in network.layers),
+            }
+        )
 
     # Execute the network with full observability
     async with obs.trace_operation(
         operation_name="network_execution",
         kind=SpanKind.NETWORK,
         component_type="network",
-        component_id=network.network_id
+        component_id=network.network_id,
     ) as network_span:
         # Set up node configurations with different providers for testing
         network.layers[0].nodes[0].configure_model(
-            provider=ModelProvider.GOOGLE,
-            model_name="gemini-2.5-flash",
-            max_tokens=50
+            provider=ModelProvider.GOOGLE, model_name="gemini-2.5-flash", max_tokens=50
         )
 
         network.layers[1].nodes[0].configure_model(
             provider=ModelProvider.ANTHROPIC,
             model_name="claude-3-haiku-20240307",
-            max_tokens=50
+            max_tokens=50,
         )
 
         network.layers[1].nodes[1].configure_model(
-            provider=ModelProvider.GOOGLE,
-            model_name="gemini-2.0-flash",
-            max_tokens=50
+            provider=ModelProvider.GOOGLE, model_name="gemini-2.0-flash", max_tokens=50
         )
 
         # Execute with automatic observability
         result = await network.forward("Explain the benefits of renewable energy")
 
         # Record network-level metrics
-        total_cost = sum(node.get_total_cost() for layer in network.layers for node in layer.nodes)
-        total_tokens = sum(node.get_total_tokens() for layer in network.layers for node in layer.nodes)
+        total_cost = sum(
+            node.get_total_cost() for layer in network.layers for node in layer.nodes
+        )
+        total_tokens = sum(
+            node.get_total_tokens() for layer in network.layers for node in layer.nodes
+        )
 
         obs.record_cost_and_tokens(
             network_span,
             token_count=total_tokens,
             cost_usd=total_cost,
             provider="mixed",
-            model="multiple"
+            model="multiple",
         )
 
-        network_span.add_tags({
-            "result_length": len(str(result)),
-            "total_cost_usd": total_cost,
-            "total_tokens": total_tokens
-        })
+        network_span.add_tags(
+            {
+                "result_length": len(str(result)),
+                "total_cost_usd": total_cost,
+                "total_tokens": total_tokens,
+            }
+        )
 
     print("✅ Network execution with observability completed")
     print()
@@ -178,35 +175,35 @@ async def demo_database_export():
     print()
 
     # Show sample span
-    if all_data['spans']:
+    if all_data["spans"]:
         print("📋 Sample Span (Database-Ready):")
-        sample_span = all_data['spans'][0]
+        sample_span = all_data["spans"][0]
         print(json.dumps(sample_span, indent=2, default=str)[:500] + "...")
         print()
 
     # Show sample log
-    if all_data['logs']:
+    if all_data["logs"]:
         print("📋 Sample Log (Database-Ready):")
-        sample_log = all_data['logs'][0]
+        sample_log = all_data["logs"][0]
         print(json.dumps(sample_log, indent=2, default=str)[:300] + "...")
         print()
 
     # Show sample metric
-    if all_data['metrics']:
+    if all_data["metrics"]:
         print("📋 Sample Metric (Database-Ready):")
-        sample_metric = all_data['metrics'][0]
+        sample_metric = all_data["metrics"][0]
         print(json.dumps(sample_metric, indent=2, default=str)[:300] + "...")
         print()
 
     # Get trace summaries
-    trace_ids = list(set(span['trace_id'] for span in all_data['spans']))
+    trace_ids = list(set(span["trace_id"] for span in all_data["spans"]))
     print(f"🔗 Found {len(trace_ids)} unique traces")
 
     for trace_id in trace_ids[:2]:  # Show first 2 traces
         summary = obs.get_trace_summary(trace_id)
         print(f"\n📈 Trace Summary: {trace_id[:8]}...")
         for key, value in summary.items():
-            if key != 'trace_id':
+            if key != "trace_id":
                 print(f"  {key}: {value}")
 
     print()
@@ -221,16 +218,22 @@ async def demo_performance_metrics():
 
     # Create multiple nodes with different configurations
     nodes = [
-        Node('generate', model_config=ModelConfig(
-            provider=ModelProvider.GOOGLE,
-            model_name="gemini-2.5-flash",
-            max_tokens=30
-        )),
-        Node('generate', model_config=ModelConfig(
-            provider=ModelProvider.ANTHROPIC,
-            model_name="claude-3-haiku-20240307",
-            max_tokens=30
-        ))
+        Node(
+            "generate",
+            model_config=ModelConfig(
+                provider=ModelProvider.GOOGLE,
+                model_name="gemini-2.5-flash",
+                max_tokens=30,
+            ),
+        ),
+        Node(
+            "generate",
+            model_config=ModelConfig(
+                provider=ModelProvider.ANTHROPIC,
+                model_name="claude-3-haiku-20240307",
+                max_tokens=30,
+            ),
+        ),
     ]
 
     # Execute nodes multiple times to collect metrics
@@ -240,7 +243,7 @@ async def demo_performance_metrics():
                 operation_name="node_execution",
                 kind=SpanKind.NODE,
                 component_type="node",
-                component_id=node.node_id
+                component_id=node.node_id,
             ) as span:
                 result = await node.execute(f"Test prompt {j+1}")
 
@@ -252,7 +255,7 @@ async def demo_performance_metrics():
                         token_count=last_metrics.token_usage.total_tokens,
                         cost_usd=last_metrics.cost_info.total_cost_usd,
                         provider=last_metrics.provider,
-                        model=node.model_config.model_name
+                        model=node.model_config.model_name,
                     )
 
     # Show metrics summaries
@@ -323,5 +326,5 @@ async def main():
 
 if __name__ == "__main__":
     # Set Google API key for real testing
-    os.environ['GOOGLE_API_KEY'] = 'AIzaSyB9k5cWxpvia7D6otvBTq8uahiHEaxAhME'
+    os.environ["GOOGLE_API_KEY"] = "AIzaSyB9k5cWxpvia7D6otvBTq8uahiHEaxAhME"
     asyncio.run(main())

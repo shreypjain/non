@@ -13,8 +13,11 @@ from typing import List, Any, Dict, Optional, Union
 from .layer import Layer, LayerResult
 from .node import Node
 from .types import (
-    Content, NetworkConfig, ExecutionContext,
-    NetworkError, ValidationError
+    Content,
+    NetworkConfig,
+    ExecutionContext,
+    NetworkError,
+    ValidationError,
 )
 from .config import get_default_network_config
 
@@ -29,7 +32,7 @@ class NetworkResult:
         execution_time: float,
         total_nodes_executed: int,
         successful_layers: int,
-        failed_layers: int
+        failed_layers: int,
     ):
         self.final_output = final_output
         self.layer_results = layer_results
@@ -50,9 +53,11 @@ class NetworkResult:
         return len(self.layer_results)
 
     def __repr__(self) -> str:
-        return (f"NetworkResult(layers={self.total_layers}, "
-                f"success_rate={self.layer_success_rate:.2%}, "
-                f"time={self.execution_time:.3f}s)")
+        return (
+            f"NetworkResult(layers={self.total_layers}, "
+            f"success_rate={self.layer_success_rate:.2%}, "
+            f"time={self.execution_time:.3f}s)"
+        )
 
     def __str__(self) -> str:
         """Detailed string representation with layer results and final output."""
@@ -64,7 +69,7 @@ class NetworkResult:
             f"│ Failed: {self.failed_layers} │",
             f"│ Total Nodes: {self.total_nodes_executed} │",
             f"│ Execution Time: {self.execution_time:.3f}s │",
-            "├─ Final Output ─┤"
+            "├─ Final Output ─┤",
         ]
 
         # Format final output with truncation
@@ -77,13 +82,17 @@ class NetworkResult:
         lines.append(f"│ {output_preview} │")
 
         # Show layer execution summary
-        lines.extend([
-            "├─ Layer Summary ─┤"
-        ])
+        lines.extend(["├─ Layer Summary ─┤"])
 
         for i, layer_result in enumerate(self.layer_results):
-            status = "✅" if layer_result.success_rate == 1.0 else "⚠️" if layer_result.success_rate > 0 else "❌"
-            lines.append(f"│ L{i}: {status} {layer_result.success_rate:.0%} ({layer_result.execution_time:.3f}s) │")
+            status = (
+                "✅"
+                if layer_result.success_rate == 1.0
+                else "⚠️" if layer_result.success_rate > 0 else "❌"
+            )
+            lines.append(
+                f"│ L{i}: {status} {layer_result.success_rate:.0%} ({layer_result.execution_time:.3f}s) │"
+            )
 
         lines.append("└───────────────────────────┘")
         return "\n".join(lines)
@@ -101,7 +110,7 @@ class NoN:
         self,
         layers: List[Layer],
         network_config: Optional[NetworkConfig] = None,
-        network_id: Optional[str] = None
+        network_id: Optional[str] = None,
     ):
         """
         Initialize a NoN with layers and configuration.
@@ -142,21 +151,21 @@ class NoN:
             f"│ ID: {self.network_id[:8]}... │",
             f"│ Layers: {len(self.layers)} │",
             f"│ Total Nodes: {total_nodes} │",
-            f"│ Executions: {self._execution_count} │"
+            f"│ Executions: {self._execution_count} │",
         ]
 
         if self._last_result:
-            lines.extend([
-                "├─ Last Execution ─┤",
-                f"│ Success Rate: {self._last_result.layer_success_rate:.1%} │",
-                f"│ Exec Time: {self._last_result.execution_time:.3f}s │",
-                f"│ Nodes Run: {self._last_result.total_nodes_executed} │"
-            ])
+            lines.extend(
+                [
+                    "├─ Last Execution ─┤",
+                    f"│ Success Rate: {self._last_result.layer_success_rate:.1%} │",
+                    f"│ Exec Time: {self._last_result.execution_time:.3f}s │",
+                    f"│ Nodes Run: {self._last_result.total_nodes_executed} │",
+                ]
+            )
 
         # Show network architecture
-        lines.extend([
-            "├─ Architecture ─┤"
-        ])
+        lines.extend(["├─ Architecture ─┤"])
 
         for i, layer in enumerate(self.layers):
             if len(layer.nodes) == 1:
@@ -175,12 +184,14 @@ class NoN:
             lines.append(f"│ L{i}: {node_info} │")
 
         # Show configuration
-        lines.extend([
-            "├─ Configuration ─┤",
-            f"│ Tracing: {'✅' if self.network_config.enable_tracing else '❌'} │",
-            f"│ Metrics: {'✅' if self.network_config.enable_metrics else '❌'} │",
-            f"│ Timeout: {self.network_config.global_timeout_seconds}s │"
-        ])
+        lines.extend(
+            [
+                "├─ Configuration ─┤",
+                f"│ Tracing: {'✅' if self.network_config.enable_tracing else '❌'} │",
+                f"│ Metrics: {'✅' if self.network_config.enable_metrics else '❌'} │",
+                f"│ Timeout: {self.network_config.global_timeout_seconds}s │",
+            ]
+        )
 
         lines.append("└─────────────────────┘")
         return "\n".join(lines)
@@ -196,9 +207,7 @@ class NoN:
                 raise ValidationError(f"Layer {i} has no nodes")
 
     async def forward(
-        self,
-        initial_input: Any,
-        trace_id: Optional[str] = None
+        self, initial_input: Any, trace_id: Optional[str] = None
     ) -> NetworkResult:
         """
         Execute forward pass through all layers sequentially.
@@ -223,10 +232,7 @@ class NoN:
             layer_index=0,
             node_index=0,
             start_time=start_time,
-            metadata={
-                "network_id": self.network_id,
-                "total_layers": len(self.layers)
-            }
+            metadata={"network_id": self.network_id, "total_layers": len(self.layers)},
         )
 
         try:
@@ -248,14 +254,13 @@ class NoN:
                         start_time=time.time(),
                         metadata={
                             **execution_context.metadata,
-                            "layer_id": layer.layer_id
-                        }
+                            "layer_id": layer.layer_id,
+                        },
                     )
 
                     # Execute layer with current output as input
                     layer_result = await layer.execute_parallel(
-                        current_output,
-                        execution_context=layer_context
+                        current_output, execution_context=layer_context
                     )
 
                     layer_results.append(layer_result)
@@ -293,7 +298,7 @@ class NoN:
                 execution_time=execution_time,
                 total_nodes_executed=total_nodes_executed,
                 successful_layers=successful_layers,
-                failed_layers=failed_layers
+                failed_layers=failed_layers,
             )
 
             self._last_result = result
@@ -306,7 +311,9 @@ class NoN:
             if isinstance(e, NetworkError):
                 raise
             else:
-                raise NetworkError(f"Network {self.network_id} execution failed: {str(e)}") from e
+                raise NetworkError(
+                    f"Network {self.network_id} execution failed: {str(e)}"
+                ) from e
 
     async def optimize(self) -> Dict[str, Any]:
         """
@@ -324,25 +331,28 @@ class NoN:
             "message": "Optimization framework is part of future research direction",
             "current_structure": {
                 "layers": len(self.layers),
-                "total_nodes": sum(len(layer) for layer in self.layers)
-            }
+                "total_nodes": sum(len(layer) for layer in self.layers),
+            },
         }
 
     def get_execution_stats(self) -> Dict[str, Any]:
         """Get comprehensive execution statistics for this network."""
         avg_execution_time = (
             self._total_execution_time / self._execution_count
-            if self._execution_count > 0 else 0.0
+            if self._execution_count > 0
+            else 0.0
         )
 
         layer_stats = []
         for i, layer in enumerate(self.layers):
-            layer_stats.append({
-                "layer_index": i,
-                "layer_id": layer.layer_id,
-                "node_count": len(layer),
-                "stats": layer.get_execution_stats()
-            })
+            layer_stats.append(
+                {
+                    "layer_index": i,
+                    "layer_id": layer.layer_id,
+                    "node_count": len(layer),
+                    "stats": layer.get_execution_stats(),
+                }
+            )
 
         return {
             "network_id": self.network_id,
@@ -353,7 +363,7 @@ class NoN:
             "average_execution_time": avg_execution_time,
             "last_result": self._last_result.__dict__ if self._last_result else None,
             "layer_stats": layer_stats,
-            "network_config": self.network_config.model_dump()
+            "network_config": self.network_config.model_dump(),
         }
 
     def add_layer(self, layer: Layer) -> None:
@@ -379,7 +389,7 @@ class NoN:
                 return layer
         return None
 
-    def clone(self, new_network_id: Optional[str] = None) -> 'NoN':
+    def clone(self, new_network_id: Optional[str] = None) -> "NoN":
         """
         Create a clone of this network with new IDs.
 
@@ -394,21 +404,21 @@ class NoN:
         return NoN(
             layers=self.layers.copy(),
             network_config=NetworkConfig(**self.network_config.model_dump()),
-            network_id=new_network_id
+            network_id=new_network_id,
         )
 
     @classmethod
-    def from_layers(cls, *layers: Layer, **kwargs) -> 'NoN':
+    def from_layers(cls, *layers: Layer, **kwargs) -> "NoN":
         """Factory method to create a network from multiple layers."""
         return cls(layers=list(layers), **kwargs)
 
     @classmethod
     def from_operators(
         cls,
-        operator_specs: List[Union[str, List[str], List['Node']]],
+        operator_specs: List[Union[str, List[str], List["Node"]]],
         network_config: Optional[NetworkConfig] = None,
-        **node_kwargs
-    ) -> 'NoN':
+        **node_kwargs,
+    ) -> "NoN":
         """
         Factory method to create a network from operator specifications.
 
@@ -458,9 +468,13 @@ class NoN:
                     # List of Node objects (from multiplication) -> parallel layer
                     layer = Layer(spec)
                 else:
-                    raise ValueError(f"Invalid operator spec: {spec}. List must contain all strings or all Node objects.")
+                    raise ValueError(
+                        f"Invalid operator spec: {spec}. List must contain all strings or all Node objects."
+                    )
             else:
-                raise ValueError(f"Invalid operator spec: {spec}. Must be string, list of strings, or list of Node objects.")
+                raise ValueError(
+                    f"Invalid operator spec: {spec}. Must be string, list of strings, or list of Node objects."
+                )
 
             layers.append(layer)
 

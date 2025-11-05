@@ -11,7 +11,7 @@ import sys
 import os
 
 # Add the nons package to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Import operators to ensure they're registered
 import nons.operators.base
@@ -29,11 +29,12 @@ async def demo_basic_multiplication():
     print("=" * 60)
 
     # Create a base node
-    base_node = Node('generate', model_config=ModelConfig(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=30
-    ))
+    base_node = Node(
+        "generate",
+        model_config=ModelConfig(
+            provider=ModelProvider.MOCK, model_name="mock-model", max_tokens=30
+        ),
+    )
 
     print(f"📝 Base Node: {base_node.operator_name} ({base_node.node_id[:8]}...)")
 
@@ -54,9 +55,15 @@ async def demo_basic_multiplication():
 
     # Verify all nodes are independent clones
     print(f"\n🔍 Verification:")
-    print(f"  All node IDs unique: {len(set(n.node_id for n in parallel_nodes_1)) == len(parallel_nodes_1)}")
-    print(f"  Same operator name: {all(n.operator_name == base_node.operator_name for n in parallel_nodes_1)}")
-    print(f"  Same model config: {all(n.model_config.model_name == base_node.model_config.model_name for n in parallel_nodes_1)}")
+    print(
+        f"  All node IDs unique: {len(set(n.node_id for n in parallel_nodes_1)) == len(parallel_nodes_1)}"
+    )
+    print(
+        f"  Same operator name: {all(n.operator_name == base_node.operator_name for n in parallel_nodes_1)}"
+    )
+    print(
+        f"  Same model config: {all(n.model_config.model_name == base_node.model_config.model_name for n in parallel_nodes_1)}"
+    )
 
     print()
 
@@ -67,11 +74,12 @@ async def demo_layer_creation():
     print("=" * 60)
 
     # Create base node
-    base_node = Node('generate', model_config=ModelConfig(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=25
-    ))
+    base_node = Node(
+        "generate",
+        model_config=ModelConfig(
+            provider=ModelProvider.MOCK, model_name="mock-model", max_tokens=25
+        ),
+    )
 
     # Create parallel nodes using multiplication
     parallel_nodes = base_node * 4
@@ -96,7 +104,9 @@ async def demo_layer_creation():
     # Show sample outputs
     print(f"\n📋 Sample Outputs:")
     for i, output in enumerate(result.outputs[:3]):
-        output_preview = str(output)[:50] + "..." if len(str(output)) > 50 else str(output)
+        output_preview = (
+            str(output)[:50] + "..." if len(str(output)) > 50 else str(output)
+        )
         print(f"  [{i}]: {output_preview}")
 
     print()
@@ -108,17 +118,19 @@ async def demo_network_integration():
     print("=" * 60)
 
     # Create nodes with multiplication
-    generate_node1 = Node('generate', model_config=ModelConfig(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=30
-    ))
+    generate_node1 = Node(
+        "generate",
+        model_config=ModelConfig(
+            provider=ModelProvider.MOCK, model_name="mock-model", max_tokens=30
+        ),
+    )
 
-    generate_node2 = Node('generate', model_config=ModelConfig(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=35
-    ))
+    generate_node2 = Node(
+        "generate",
+        model_config=ModelConfig(
+            provider=ModelProvider.MOCK, model_name="mock-model", max_tokens=35
+        ),
+    )
 
     # Create parallel processing layers using multiplication
     parallel_generators1 = generate_node1 * 2
@@ -129,12 +141,14 @@ async def demo_network_integration():
     print(f"   Generate layer 2: {len(parallel_generators2)} nodes")
 
     # Create network using the new from_operators enhancement
-    network = NoN.from_operators([
-        'generate',            # Single generate node
-        parallel_generators1,  # Parallel generate nodes from multiplication
-        parallel_generators2,  # Parallel generate nodes from multiplication
-        'generate'            # Single generate node
-    ])
+    network = NoN.from_operators(
+        [
+            "generate",  # Single generate node
+            parallel_generators1,  # Parallel generate nodes from multiplication
+            parallel_generators2,  # Parallel generate nodes from multiplication
+            "generate",  # Single generate node
+        ]
+    )
 
     print(f"🏗️  Created network with {len(network.layers)} layers:")
     for i, layer in enumerate(network.layers):
@@ -165,17 +179,19 @@ async def demo_advanced_patterns():
     print("=" * 60)
 
     # Pattern 1: Different multiplications for different nodes
-    generate_node1 = Node('generate', model_config=ModelConfig(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=20
-    ))
+    generate_node1 = Node(
+        "generate",
+        model_config=ModelConfig(
+            provider=ModelProvider.MOCK, model_name="mock-model", max_tokens=20
+        ),
+    )
 
-    generate_node2 = Node('generate', model_config=ModelConfig(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=25
-    ))
+    generate_node2 = Node(
+        "generate",
+        model_config=ModelConfig(
+            provider=ModelProvider.MOCK, model_name="mock-model", max_tokens=25
+        ),
+    )
 
     # Create different numbers of parallel instances
     generators1 = generate_node1 * 2
@@ -186,20 +202,23 @@ async def demo_advanced_patterns():
     print(f"   Generators2: {len(generators2)} nodes")
 
     # Pattern 2: Nested processing with multiplication
-    generate_base = Node('generate', model_config=ModelConfig(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=30
-    ))
+    generate_base = Node(
+        "generate",
+        model_config=ModelConfig(
+            provider=ModelProvider.MOCK, model_name="mock-model", max_tokens=30
+        ),
+    )
 
     # Create a complex network with multiple parallel layers
-    network = NoN.from_operators([
-        'generate',                    # Input processing
-        generate_base * 3,             # 3 parallel generators
-        ['generate', 'generate'],      # 2 different parallel operators
-        generators1,                   # 2 parallel generators from multiplication
-        'generate'                     # Final aggregation
-    ])
+    network = NoN.from_operators(
+        [
+            "generate",  # Input processing
+            generate_base * 3,  # 3 parallel generators
+            ["generate", "generate"],  # 2 different parallel operators
+            generators1,  # 2 parallel generators from multiplication
+            "generate",  # Final aggregation
+        ]
+    )
 
     print(f"\n🏗️  Pattern 2 - Complex Network:")
     print(f"   Total Layers: {len(network.layers)}")
@@ -226,11 +245,12 @@ async def demo_error_handling():
     print("=" * 60)
 
     # Test invalid multiplication values
-    base_node = Node('generate', model_config=ModelConfig(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=20
-    ))
+    base_node = Node(
+        "generate",
+        model_config=ModelConfig(
+            provider=ModelProvider.MOCK, model_name="mock-model", max_tokens=20
+        ),
+    )
 
     print("🔍 Testing error conditions:")
 
@@ -274,11 +294,12 @@ async def demo_performance_comparison():
     print("⚡ PERFORMANCE WITH MULTIPLICATION")
     print("=" * 60)
 
-    base_node = Node('generate', model_config=ModelConfig(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=20
-    ))
+    base_node = Node(
+        "generate",
+        model_config=ModelConfig(
+            provider=ModelProvider.MOCK, model_name="mock-model", max_tokens=20
+        ),
+    )
 
     # Test different scales of multiplication
     scales = [1, 2, 4, 8]
@@ -293,13 +314,16 @@ async def demo_performance_comparison():
 
         # Time execution
         import time
+
         start_time = time.time()
         result = await layer.execute_parallel(input_text)
         end_time = time.time()
 
-        print(f"   Scale {scale:2d}: {result.execution_time:.3f}s "
-              f"({len(result.outputs)} outputs, "
-              f"{result.success_rate:.1%} success)")
+        print(
+            f"   Scale {scale:2d}: {result.execution_time:.3f}s "
+            f"({len(result.outputs)} outputs, "
+            f"{result.success_rate:.1%} success)"
+        )
 
     print()
 

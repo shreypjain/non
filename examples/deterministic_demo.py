@@ -19,9 +19,16 @@ from typing import List, Dict, Any
 from nons.core.network import NoN
 from nons.core.node import Node
 from nons.operators.deterministic import (
-    PackCandidates, ExtractWinners, Majority, SelectById,
-    Candidate, PackedCandidates, _hash, _canon
+    PackCandidates,
+    ExtractWinners,
+    Majority,
+    SelectById,
+    Candidate,
+    PackedCandidates,
+    _hash,
+    _canon,
 )
+
 
 async def demo_basic_deterministic_ops():
     """Demonstrate basic usage of deterministic operators."""
@@ -35,7 +42,7 @@ async def demo_basic_deterministic_ops():
     raw_results = [
         "The capital of France is Paris",
         "Paris is the capital of France",
-        "France's capital city is Paris"
+        "France's capital city is Paris",
     ]
 
     packed = pack_op(raw_results)
@@ -73,6 +80,7 @@ async def demo_basic_deterministic_ops():
 
     print("\n" + "=" * 50)
 
+
 async def demo_ensemble_flow_1():
     """
     Ensemble Flow 1: Multi-generation with majority voting
@@ -84,11 +92,26 @@ async def demo_ensemble_flow_1():
 
     # Simulate multiple LLM responses (normally these would come from different models/prompts)
     simulated_responses = [
-        {"response": "Renewable energy is crucial for environmental sustainability", "model": "claude"},
-        {"response": "Clean energy sources are vital for our planet's future", "model": "gpt"},
-        {"response": "Sustainable power generation protects the environment", "model": "gemini"},
-        {"response": "Renewable energy is crucial for environmental sustainability", "model": "claude-2"},  # Duplicate
-        {"response": "Green energy solutions are essential for climate action", "model": "gpt-4"}
+        {
+            "response": "Renewable energy is crucial for environmental sustainability",
+            "model": "claude",
+        },
+        {
+            "response": "Clean energy sources are vital for our planet's future",
+            "model": "gpt",
+        },
+        {
+            "response": "Sustainable power generation protects the environment",
+            "model": "gemini",
+        },
+        {
+            "response": "Renewable energy is crucial for environmental sustainability",
+            "model": "claude-2",
+        },  # Duplicate
+        {
+            "response": "Green energy solutions are essential for climate action",
+            "model": "gpt-4",
+        },
     ]
 
     print(f"Generated {len(simulated_responses)} responses from different models")
@@ -103,9 +126,9 @@ async def demo_ensemble_flow_1():
     majority_result = majority_op(packed)
 
     print(f"\nMajority Voting Results:")
-    if majority_result['consensus_met'] and majority_result['result']:
-        result_content = majority_result['result']
-        if isinstance(result_content, dict) and 'response' in result_content:
+    if majority_result["consensus_met"] and majority_result["result"]:
+        result_content = majority_result["result"]
+        if isinstance(result_content, dict) and "response" in result_content:
             print(f"  Winner: {result_content['response']}")
         else:
             print(f"  Winner: {result_content}")
@@ -113,7 +136,9 @@ async def demo_ensemble_flow_1():
         print(f"  Winner: No consensus reached (threshold not met)")
     print(f"  Confidence: {majority_result['confidence']:.2f}")
     print(f"  Consensus met: {majority_result['consensus_met']}")
-    print(f"  Vote distribution: {len(majority_result['vote_counts'])} unique responses")
+    print(
+        f"  Vote distribution: {len(majority_result['vote_counts'])} unique responses"
+    )
 
     # Step 3: Extract top candidates for backup options
     extract_op = ExtractWinners(strategy="top_k", k=3)
@@ -122,9 +147,18 @@ async def demo_ensemble_flow_1():
     print(f"\nTop 3 candidates (as backup options):")
     for i, candidate in enumerate(top_candidates):
         response_data = candidate.content
-        model = response_data.get('model', 'unknown') if isinstance(response_data, dict) else 'unknown'
-        response = response_data.get('response', str(response_data)) if isinstance(response_data, dict) else str(response_data)
+        model = (
+            response_data.get("model", "unknown")
+            if isinstance(response_data, dict)
+            else "unknown"
+        )
+        response = (
+            response_data.get("response", str(response_data))
+            if isinstance(response_data, dict)
+            else str(response_data)
+        )
         print(f"  {i+1}. [{model}] {response[:60]}... (score: {candidate.score:.4f})")
+
 
 async def demo_ensemble_flow_2():
     """
@@ -138,11 +172,31 @@ async def demo_ensemble_flow_2():
     # Simulate scored candidates (e.g., from different evaluation criteria)
     scored_candidates_data = {
         "candidates": [
-            {"id": "response_a", "content": "Solar and wind power are the most promising renewable technologies", "score": 0.85},
-            {"id": "response_b", "content": "Nuclear energy provides clean, reliable baseload power", "score": 0.72},
-            {"id": "response_c", "content": "Hydroelectric dams offer sustainable energy generation", "score": 0.68},
-            {"id": "response_d", "content": "Solar and wind power are the most promising renewable technologies", "score": 0.91},  # Duplicate with higher score
-            {"id": "response_e", "content": "Geothermal energy taps into Earth's natural heat", "score": 0.55}
+            {
+                "id": "response_a",
+                "content": "Solar and wind power are the most promising renewable technologies",
+                "score": 0.85,
+            },
+            {
+                "id": "response_b",
+                "content": "Nuclear energy provides clean, reliable baseload power",
+                "score": 0.72,
+            },
+            {
+                "id": "response_c",
+                "content": "Hydroelectric dams offer sustainable energy generation",
+                "score": 0.68,
+            },
+            {
+                "id": "response_d",
+                "content": "Solar and wind power are the most promising renewable technologies",
+                "score": 0.91,
+            },  # Duplicate with higher score
+            {
+                "id": "response_e",
+                "content": "Geothermal energy taps into Earth's natural heat",
+                "score": 0.55,
+            },
         ]
     }
 
@@ -160,9 +214,9 @@ async def demo_ensemble_flow_2():
     weighted_result = weighted_majority_op(packed)
 
     print(f"\nWeighted Majority Voting Results:")
-    if weighted_result['consensus_met'] and weighted_result['result']:
-        result_content = weighted_result['result']
-        if isinstance(result_content, dict) and 'content' in result_content:
+    if weighted_result["consensus_met"] and weighted_result["result"]:
+        result_content = weighted_result["result"]
+        if isinstance(result_content, dict) and "content" in result_content:
             print(f"  Winner: {result_content['content']}")
         else:
             print(f"  Winner: {result_content}")
@@ -177,7 +231,9 @@ async def demo_ensemble_flow_2():
 
     print(f"\nHigh-quality candidates (score ≥ 0.7):")
     for candidate in high_quality:
-        print(f"  {candidate.id}: {candidate.content[:50]}... (score: {candidate.score:.2f})")
+        print(
+            f"  {candidate.id}: {candidate.content[:50]}... (score: {candidate.score:.2f})"
+        )
 
     # Step 4: Select specific candidates by ID for further processing
     select_op = SelectById(target_ids=["response_a", "response_d"])
@@ -187,6 +243,7 @@ async def demo_ensemble_flow_2():
     for candidate in selected_similar:
         print(f"  {candidate.id}: score={candidate.score:.2f}")
         print(f"    Content: {candidate.content}")
+
 
 async def demo_caching_and_hashing():
     """Demonstrate content hashing and caching capabilities."""
@@ -211,6 +268,7 @@ async def demo_caching_and_hashing():
 
     # First call - should compute
     import time
+
     start = time.time()
     result1 = pack_op(data)
     time1 = time.time() - start
@@ -229,6 +287,7 @@ async def demo_caching_and_hashing():
     pack_op.clear_cache()
     print(f"After cache clear: {pack_op.cache_stats()}")
 
+
 async def demo_non_integration():
     """Demonstrate integration with NoN networks."""
     print("\n🌐 INTEGRATION WITH NoN NETWORKS")
@@ -237,11 +296,13 @@ async def demo_non_integration():
     # Create a network that uses deterministic operators
     try:
         # Note: These operators are registered with the NoN registry
-        network = NoN.from_operators([
-            'pack_candidates',    # Structure the data
-            'majority',          # Find consensus
-            'extract_winners'    # Select top results
-        ])
+        network = NoN.from_operators(
+            [
+                "pack_candidates",  # Structure the data
+                "majority",  # Find consensus
+                "extract_winners",  # Select top results
+            ]
+        )
 
         print("Created NoN network with deterministic operators:")
         print(f"Network layers: {len(network.layers)}")
@@ -252,7 +313,7 @@ async def demo_non_integration():
                 "Machine learning enables intelligent automation",
                 "AI systems can automate complex decision making",
                 "Automated intelligence through machine learning",
-                "Machine learning enables intelligent automation"  # Duplicate
+                "Machine learning enables intelligent automation",  # Duplicate
             ]
         }
 
@@ -266,6 +327,7 @@ async def demo_non_integration():
     except Exception as e:
         print(f"Network integration demo skipped: {e}")
         print("(This is expected if running without full NoN environment)")
+
 
 async def main():
     """Run all deterministic operator demonstrations."""
@@ -289,6 +351,7 @@ async def main():
     print("  • Ensemble voting for robust decision making")
     print("  • Pure functions with no side effects")
     print("  • Integration with NoN network architecture")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

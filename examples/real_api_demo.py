@@ -11,7 +11,7 @@ import sys
 import os
 
 # Add the nons package to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from nons.core.node import Node
 from nons.core.network import NoN
@@ -26,23 +26,23 @@ async def demo_mixed_providers():
 
     # Create nodes with different providers
     anthropic_node = Node(
-        'generate',
+        "generate",
         model_config=ModelConfig(
             provider=ModelProvider.ANTHROPIC,
             model_name="claude-3-haiku-20240307",
             temperature=0.7,
-            max_tokens=100
-        )
+            max_tokens=100,
+        ),
     )
 
     openai_node = Node(
-        'generate',
+        "generate",
         model_config=ModelConfig(
             provider=ModelProvider.OPENAI,
             model_name="gpt-4",
             temperature=0.7,
-            max_tokens=100
-        )
+            max_tokens=100,
+        ),
     )
 
     print("Testing Anthropic (real API):")
@@ -64,7 +64,7 @@ async def demo_mixed_providers():
         print(f"  Cost: ${metrics2.cost_info.total_cost_usd:.6f}")
         print(f"  Provider: {metrics2.provider}")
 
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
 
 async def demo_network_mixed_providers():
@@ -73,29 +73,29 @@ async def demo_network_mixed_providers():
     print("=" * 50)
 
     # Create a network with mixed providers using from_operators
-    network = NoN.from_operators([
-        'generate',                    # Layer 0: Single generate (will use default config)
-        ['generate', 'generate']       # Layer 1: Parallel generates
-    ])
+    network = NoN.from_operators(
+        [
+            "generate",  # Layer 0: Single generate (will use default config)
+            ["generate", "generate"],  # Layer 1: Parallel generates
+        ]
+    )
 
     # Update the nodes with specific provider configurations
     # Layer 0: Anthropic (real API)
     network.layers[0].nodes[0].configure_model(
         provider=ModelProvider.ANTHROPIC,
         model_name="claude-3-haiku-20240307",
-        max_tokens=50
+        max_tokens=50,
     )
 
     # Layer 1: Mixed providers
     network.layers[1].nodes[0].configure_model(
         provider=ModelProvider.ANTHROPIC,
         model_name="claude-3-haiku-20240307",
-        max_tokens=50
+        max_tokens=50,
     )
     network.layers[1].nodes[1].configure_model(
-        provider=ModelProvider.OPENAI,
-        model_name="gpt-3.5-turbo",
-        max_tokens=50
+        provider=ModelProvider.OPENAI, model_name="gpt-3.5-turbo", max_tokens=50
     )
 
     print("Network architecture:")
@@ -125,7 +125,9 @@ async def demo_network_mixed_providers():
             if metrics:
                 cost = node.get_total_cost()
                 tokens = node.get_total_tokens()
-                print(f"    Node {j} ({metrics.provider}): {tokens} tokens, ${cost:.6f}")
+                print(
+                    f"    Node {j} ({metrics.provider}): {tokens} tokens, ${cost:.6f}"
+                )
 
                 if metrics.provider == "anthropic":
                     anthropic_cost += cost
@@ -138,28 +140,30 @@ async def demo_network_mixed_providers():
     print("🏆 PROVIDER TOTALS:")
     print(f"  Anthropic (real): {anthropic_tokens} tokens, ${anthropic_cost:.6f}")
     print(f"  OpenAI (mock): {openai_tokens} tokens, ${openai_cost:.6f}")
-    print(f"  Total: {anthropic_tokens + openai_tokens} tokens, ${anthropic_cost + openai_cost:.6f}")
+    print(
+        f"  Total: {anthropic_tokens + openai_tokens} tokens, ${anthropic_cost + openai_cost:.6f}"
+    )
 
-    print("\n" + "="*50 + "\n")
+    print("\n" + "=" * 50 + "\n")
 
 
 async def main():
     """Run mixed provider demonstrations."""
     print("🌐 REAL API + MOCK PROVIDER DEMO")
-    print("="*50)
+    print("=" * 50)
     print("Testing with real Anthropic API and OpenAI mock fallback!")
-    print("="*50)
+    print("=" * 50)
     print()
 
     await demo_mixed_providers()
     await demo_network_mixed_providers()
 
     print("🎉 MIXED PROVIDER DEMO COMPLETED!")
-    print("="*50)
+    print("=" * 50)
     print("✨ Real Anthropic API calls with token/cost tracking!")
     print("✨ Graceful fallback to mock for invalid OpenAI keys!")
     print("✨ Mixed provider networks working seamlessly!")
-    print("="*50)
+    print("=" * 50)
 
 
 if __name__ == "__main__":

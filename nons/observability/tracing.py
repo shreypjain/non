@@ -19,6 +19,7 @@ from pydantic import BaseModel
 
 class SpanKind(str, Enum):
     """Types of spans for different execution contexts."""
+
     NETWORK = "network"
     LAYER = "layer"
     NODE = "node"
@@ -30,6 +31,7 @@ class SpanKind(str, Enum):
 
 class SpanStatus(str, Enum):
     """Span execution status."""
+
     PENDING = "pending"
     RUNNING = "running"
     SUCCESS = "success"
@@ -41,6 +43,7 @@ class SpanStatus(str, Enum):
 @dataclass
 class SpanContext:
     """Context information for span relationships."""
+
     trace_id: str
     span_id: str
     parent_span_id: Optional[str] = None
@@ -54,6 +57,7 @@ class Span:
 
     Database-ready structure for storing execution traces.
     """
+
     # Core identification (required fields)
     trace_id: str
     span_id: str
@@ -93,14 +97,14 @@ class Span:
     layer_index: Optional[int] = None
     node_index: Optional[int] = None
 
-    def start(self) -> 'Span':
+    def start(self) -> "Span":
         """Start the span and mark as running."""
         self.start_time = time.time()
         self.status = SpanStatus.RUNNING
         self.add_log("span_started", {"timestamp": self.start_time})
         return self
 
-    def finish(self, status: Optional[SpanStatus] = None) -> 'Span':
+    def finish(self, status: Optional[SpanStatus] = None) -> "Span":
         """Finish the span and calculate duration."""
         self.end_time = time.time()
         if self.start_time:
@@ -111,46 +115,46 @@ class Span:
         elif self.status == SpanStatus.RUNNING:
             self.status = SpanStatus.SUCCESS
 
-        self.add_log("span_finished", {
-            "timestamp": self.end_time,
-            "duration_ms": self.duration_ms,
-            "status": self.status.value
-        })
+        self.add_log(
+            "span_finished",
+            {
+                "timestamp": self.end_time,
+                "duration_ms": self.duration_ms,
+                "status": self.status.value,
+            },
+        )
         return self
 
-    def add_tag(self, key: str, value: Any) -> 'Span':
+    def add_tag(self, key: str, value: Any) -> "Span":
         """Add a tag to the span."""
         self.tags[key] = value
         return self
 
-    def add_tags(self, tags: Dict[str, Any]) -> 'Span':
+    def add_tags(self, tags: Dict[str, Any]) -> "Span":
         """Add multiple tags to the span."""
         self.tags.update(tags)
         return self
 
-    def add_log(self, event: str, fields: Optional[Dict[str, Any]] = None) -> 'Span':
+    def add_log(self, event: str, fields: Optional[Dict[str, Any]] = None) -> "Span":
         """Add a log entry to the span."""
-        log_entry = {
-            "timestamp": time.time(),
-            "event": event,
-            "fields": fields or {}
-        }
+        log_entry = {"timestamp": time.time(), "event": event, "fields": fields or {}}
         self.logs.append(log_entry)
         return self
 
-    def set_error(self, error: Exception) -> 'Span':
+    def set_error(self, error: Exception) -> "Span":
         """Record an error in the span."""
         self.status = SpanStatus.ERROR
         self.error_type = type(error).__name__
         self.error_message = str(error)
 
         import traceback
+
         self.error_stack = traceback.format_exc()
 
-        self.add_log("error", {
-            "error_type": self.error_type,
-            "error_message": self.error_message
-        })
+        self.add_log(
+            "error",
+            {"error_type": self.error_type, "error_message": self.error_message},
+        )
         return self
 
     def to_dict(self) -> Dict[str, Any]:
@@ -195,7 +199,7 @@ class TraceManager:
 
         # Context variables for automatic parent tracking
         self.current_span_context: ContextVar[Optional[SpanContext]] = ContextVar(
-            'current_span_context', default=None
+            "current_span_context", default=None
         )
 
     def start_span(
@@ -203,7 +207,7 @@ class TraceManager:
         operation_name: str,
         kind: SpanKind,
         parent_context: Optional[SpanContext] = None,
-        **kwargs
+        **kwargs,
     ) -> Span:
         """Start a new span with automatic parent relationship."""
         if not self.enable_tracing:
@@ -234,7 +238,7 @@ class TraceManager:
             parent_span_id=parent_span_id,
             operation_name=operation_name,
             kind=kind,
-            **kwargs
+            **kwargs,
         ).start()
 
         # Store active span
@@ -243,9 +247,7 @@ class TraceManager:
 
         # Set as current context
         new_context = SpanContext(
-            trace_id=trace_id,
-            span_id=span_id,
-            parent_span_id=parent_span_id
+            trace_id=trace_id, span_id=span_id, parent_span_id=parent_span_id
         )
         self.current_span_context.set(new_context)
 
@@ -296,9 +298,7 @@ class TraceManager:
         return sorted(spans, key=lambda s: s.start_time)
 
     def export_spans(
-        self,
-        trace_id: Optional[str] = None,
-        since: Optional[float] = None
+        self, trace_id: Optional[str] = None, since: Optional[float] = None
     ) -> List[Dict[str, Any]]:
         """
         Export spans in database-ready format.
@@ -338,7 +338,7 @@ class TraceManager:
             trace_id="noop",
             span_id="noop",
             operation_name="noop",
-            kind=SpanKind.OPERATOR
+            kind=SpanKind.OPERATOR,
         )
 
 
@@ -369,7 +369,7 @@ class TracedOperation:
         operation_name: str,
         kind: SpanKind,
         tracer: Optional[TraceManager] = None,
-        **span_kwargs
+        **span_kwargs,
     ):
         self.operation_name = operation_name
         self.kind = kind
@@ -379,9 +379,7 @@ class TracedOperation:
 
     def __enter__(self) -> Span:
         self.span = self.tracer.start_span(
-            self.operation_name,
-            self.kind,
-            **self.span_kwargs
+            self.operation_name, self.kind, **self.span_kwargs
         )
         return self.span
 
@@ -400,7 +398,7 @@ class AsyncTracedOperation:
         operation_name: str,
         kind: SpanKind,
         tracer: Optional[TraceManager] = None,
-        **span_kwargs
+        **span_kwargs,
     ):
         self.operation_name = operation_name
         self.kind = kind
@@ -410,9 +408,7 @@ class AsyncTracedOperation:
 
     async def __aenter__(self) -> Span:
         self.span = self.tracer.start_span(
-            self.operation_name,
-            self.kind,
-            **self.span_kwargs
+            self.operation_name, self.kind, **self.span_kwargs
         )
         return self.span
 
@@ -424,18 +420,14 @@ class AsyncTracedOperation:
 
 
 def traced_operation(
-    operation_name: str,
-    kind: SpanKind,
-    **span_kwargs
+    operation_name: str, kind: SpanKind, **span_kwargs
 ) -> TracedOperation:
     """Create a traced operation context manager."""
     return TracedOperation(operation_name, kind, **span_kwargs)
 
 
 def async_traced_operation(
-    operation_name: str,
-    kind: SpanKind,
-    **span_kwargs
+    operation_name: str, kind: SpanKind, **span_kwargs
 ) -> AsyncTracedOperation:
     """Create an async traced operation context manager."""
     return AsyncTracedOperation(operation_name, kind, **span_kwargs)

@@ -10,8 +10,12 @@ from functools import wraps
 import asyncio
 import inspect
 from ..core.types import (
-    InputSchema, OutputSchema, OperatorMetadata, Content,
-    ValidationError, OperatorError
+    InputSchema,
+    OutputSchema,
+    OperatorMetadata,
+    Content,
+    ValidationError,
+    OperatorError,
 )
 
 
@@ -24,7 +28,7 @@ class OperatorRegistry:
     """
 
     def __init__(self) -> None:
-        self._operators: Dict[str, 'RegisteredOperator'] = {}
+        self._operators: Dict[str, "RegisteredOperator"] = {}
         self._compilation_hooks: List[Callable] = []
 
     def register(
@@ -33,8 +37,8 @@ class OperatorRegistry:
         name: Optional[str] = None,
         input_schema: Optional[InputSchema] = None,
         output_schema: Optional[OutputSchema] = None,
-        metadata: Optional[OperatorMetadata] = None
-    ) -> 'RegisteredOperator':
+        metadata: Optional[OperatorMetadata] = None,
+    ) -> "RegisteredOperator":
         """
         Register an operator function with the registry.
 
@@ -65,7 +69,7 @@ class OperatorRegistry:
                 name=operator_name,
                 description=func.__doc__ or f"Operator: {operator_name}",
                 examples=[],
-                tags=[]
+                tags=[],
             )
 
         registered_op = RegisteredOperator(
@@ -73,13 +77,13 @@ class OperatorRegistry:
             function=func,
             input_schema=input_schema,
             output_schema=output_schema,
-            metadata=metadata
+            metadata=metadata,
         )
 
         self._operators[operator_name] = registered_op
         return registered_op
 
-    def get(self, name: str) -> 'RegisteredOperator':
+    def get(self, name: str) -> "RegisteredOperator":
         """Get a registered operator by name."""
         if name not in self._operators:
             raise ValidationError(f"Operator '{name}' not found in registry")
@@ -101,7 +105,7 @@ class OperatorRegistry:
         param_types = {}
 
         for param_name, param in sig.parameters.items():
-            if param_name in ('self', 'cls'):
+            if param_name in ("self", "cls"):
                 continue
 
             # Convert type annotations to strings for pydantic compatibility
@@ -118,17 +122,20 @@ class OperatorRegistry:
         return InputSchema(
             required_params=required_params,
             optional_params=optional_params,
-            param_types=param_types
+            param_types=param_types,
         )
 
     def _infer_output_schema(self, func: Callable) -> OutputSchema:
         """Infer output schema from function return annotation."""
         sig = inspect.signature(func)
-        return_type = str(sig.return_annotation) if sig.return_annotation != inspect.Signature.empty else "Any"
+        return_type = (
+            str(sig.return_annotation)
+            if sig.return_annotation != inspect.Signature.empty
+            else "Any"
+        )
 
         return OutputSchema(
-            return_type=return_type,
-            description=f"Return type for {func.__name__}"
+            return_type=return_type, description=f"Return type for {func.__name__}"
         )
 
 
@@ -143,7 +150,7 @@ class RegisteredOperator:
         function: Callable,
         input_schema: InputSchema,
         output_schema: OutputSchema,
-        metadata: OperatorMetadata
+        metadata: OperatorMetadata,
     ):
         self.name = name
         self.function = function
@@ -157,11 +164,13 @@ class RegisteredOperator:
 
     def _make_async(self, func: Callable) -> Callable:
         """Convert sync function to async."""
+
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             # Run sync function in thread pool to avoid blocking
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(None, func, *args, **kwargs)
+
         return async_wrapper
 
     def validate_inputs(self, *args, **kwargs) -> None:
@@ -183,7 +192,7 @@ class RegisteredOperator:
         if missing_params:
             raise ValidationError(f"Missing required parameters: {missing_params}")
 
-    def __mul__(self, n: int) -> 'ParallelOperator':
+    def __mul__(self, n: int) -> "ParallelOperator":
         """Support multiplication operator for parallel execution."""
         if not isinstance(n, int) or n < 1:
             raise ValidationError("Multiplication factor must be a positive integer")
@@ -213,7 +222,7 @@ def operator(
     name: Optional[str] = None,
     input_schema: Optional[InputSchema] = None,
     output_schema: Optional[OutputSchema] = None,
-    metadata: Optional[OperatorMetadata] = None
+    metadata: Optional[OperatorMetadata] = None,
 ) -> Callable:
     """
     Decorator for registering operator functions.
@@ -233,6 +242,7 @@ def operator(
     Returns:
         Decorated function registered in the global registry
     """
+
     def decorator(func: Callable) -> Callable:
         # Register the function
         registered_op = _global_registry.register(
@@ -240,7 +250,7 @@ def operator(
             name=name,
             input_schema=input_schema,
             output_schema=output_schema,
-            metadata=metadata
+            metadata=metadata,
         )
 
         # Return a wrapper that preserves the original function interface
@@ -254,7 +264,9 @@ def operator(
                 result = await registered_op.function(*args, **kwargs)
                 return result
             except Exception as e:
-                raise OperatorError(f"Error in operator '{registered_op.name}': {str(e)}") from e
+                raise OperatorError(
+                    f"Error in operator '{registered_op.name}': {str(e)}"
+                ) from e
 
         # Attach registry information to the wrapper
         wrapper._registered_operator = registered_op
@@ -288,13 +300,13 @@ def get_operator_info(name: str) -> Dict[str, Any]:
         "input_schema": {
             "required_params": operator.input_schema.required_params,
             "optional_params": operator.input_schema.optional_params,
-            "param_types": operator.input_schema.param_types
+            "param_types": operator.input_schema.param_types,
         },
         "output_schema": {
             "return_type": operator.output_schema.return_type,
-            "description": operator.output_schema.description
+            "description": operator.output_schema.description,
         },
-        "description": operator.metadata.description
+        "description": operator.metadata.description,
     }
 
 

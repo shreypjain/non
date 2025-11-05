@@ -1,14 +1,20 @@
 """
 Tests for Layer class parallel execution.
 """
+
 import pytest
 import asyncio
 from unittest.mock import patch, AsyncMock, MagicMock
 from nons.core.layer import Layer, create_parallel_layer
 from nons.core.node import Node
 from nons.core.types import (
-    ModelConfig, ModelProvider, ExecutionContext, LayerConfig, ErrorPolicy,
-    LayerResult, OperatorError
+    ModelConfig,
+    ModelProvider,
+    ExecutionContext,
+    LayerConfig,
+    ErrorPolicy,
+    LayerResult,
+    OperatorError,
 )
 from tests.conftest import MockLLMProvider, assert_execution_metrics
 
@@ -24,9 +30,9 @@ class TestLayerInitialization:
         """Test basic layer initialization."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
         nodes = [
-            Node('generate', config),
-            Node('generate', config),
-            Node('generate', config)
+            Node("generate", config),
+            Node("generate", config),
+            Node("generate", config),
         ]
 
         layer = Layer(nodes)
@@ -40,7 +46,7 @@ class TestLayerInitialization:
     def test_layer_initialization_with_custom_id(self):
         """Test layer initialization with custom ID."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        nodes = [Node('generate', config)]
+        nodes = [Node("generate", config)]
         custom_id = "custom-layer-123"
 
         layer = Layer(nodes, layer_id=custom_id)
@@ -50,12 +56,12 @@ class TestLayerInitialization:
     def test_layer_initialization_with_config(self):
         """Test layer initialization with custom configuration."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        nodes = [Node('generate', config)]
+        nodes = [Node("generate", config)]
 
         layer_config = LayerConfig(
             error_policy=ErrorPolicy.RETRY_WITH_BACKOFF,
             max_retries=5,
-            timeout_seconds=30.0
+            timeout_seconds=30.0,
         )
 
         layer = Layer(nodes, layer_config=layer_config)
@@ -71,7 +77,9 @@ class TestLayerInitialization:
 
     def test_layer_initialization_invalid_node_type(self):
         """Test layer initialization with invalid node types."""
-        with pytest.raises(TypeError, match="All items in nodes list must be Node instances"):
+        with pytest.raises(
+            TypeError, match="All items in nodes list must be Node instances"
+        ):
             Layer(["not", "nodes"])
 
 
@@ -86,16 +94,14 @@ class TestLayerExecution:
         """Test basic parallel execution."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
         nodes = [
-            Node('generate', config),
-            Node('generate', config),
-            Node('generate', config)
+            Node("generate", config),
+            Node("generate", config),
+            Node("generate", config),
         ]
         layer = Layer(nodes)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
-            mock_provider = MockLLMProvider({
-                "default": "Mock response"
-            })
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
+            mock_provider = MockLLMProvider({"default": "Mock response"})
             mock_provider_factory.return_value = mock_provider
 
             result = await layer.execute_parallel("Test input")
@@ -109,13 +115,10 @@ class TestLayerExecution:
     async def test_parallel_execution_with_different_responses(self):
         """Test parallel execution with different responses per node."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        nodes = [
-            Node('generate', config),
-            Node('generate', config)
-        ]
+        nodes = [Node("generate", config), Node("generate", config)]
         layer = Layer(nodes)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             call_count = 0
 
             async def varying_completion(prompt, config):
@@ -124,14 +127,21 @@ class TestLayerExecution:
                 response = f"Response {call_count}"
 
                 from nons.core.types import ExecutionMetrics, TokenUsage, CostInfo
+
                 metrics = ExecutionMetrics(
                     execution_time=0.5,
-                    token_usage=TokenUsage(prompt_tokens=10, completion_tokens=15, total_tokens=25),
-                    cost_info=CostInfo(cost_usd=0.001, provider=config.provider, model_name=config.model_name),
+                    token_usage=TokenUsage(
+                        prompt_tokens=10, completion_tokens=15, total_tokens=25
+                    ),
+                    cost_info=CostInfo(
+                        cost_usd=0.001,
+                        provider=config.provider,
+                        model_name=config.model_name,
+                    ),
                     provider=config.provider,
                     model_name=config.model_name,
                     success=True,
-                    timestamp=1234567890.0
+                    timestamp=1234567890.0,
                 )
                 return response, metrics
 
@@ -150,21 +160,23 @@ class TestLayerExecution:
         """Test parallel execution with list of inputs."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
         nodes = [
-            Node('generate', config),
-            Node('generate', config),
-            Node('generate', config)
+            Node("generate", config),
+            Node("generate", config),
+            Node("generate", config),
         ]
         layer = Layer(nodes)
 
         inputs = ["Input 1", "Input 2", "Input 3"]
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
-            mock_provider = MockLLMProvider({
-                "Input 1": "Response 1",
-                "Input 2": "Response 2",
-                "Input 3": "Response 3",
-                "default": "Default response"
-            })
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
+            mock_provider = MockLLMProvider(
+                {
+                    "Input 1": "Response 1",
+                    "Input 2": "Response 2",
+                    "Input 3": "Response 3",
+                    "default": "Default response",
+                }
+            )
             mock_provider_factory.return_value = mock_provider
 
             result = await layer.execute_parallel(inputs)
@@ -175,13 +187,13 @@ class TestLayerExecution:
     async def test_parallel_execution_with_mismatched_inputs(self):
         """Test parallel execution with mismatched input count."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        nodes = [Node('generate', config), Node('generate', config)]
+        nodes = [Node("generate", config), Node("generate", config)]
         layer = Layer(nodes)
 
         # More inputs than nodes - should use first input for all nodes
         inputs = ["Input 1", "Input 2", "Input 3"]
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = MockLLMProvider()
             mock_provider_factory.return_value = mock_provider
 
@@ -192,21 +204,17 @@ class TestLayerExecution:
     async def test_parallel_execution_with_execution_context(self):
         """Test parallel execution with execution context."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        nodes = [Node('generate', config), Node('generate', config)]
+        nodes = [Node("generate", config), Node("generate", config)]
         layer = Layer(nodes)
 
-        execution_context = ExecutionContext(
-            trace_id="test-trace",
-            user_id="test-user"
-        )
+        execution_context = ExecutionContext(trace_id="test-trace", user_id="test-user")
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = MockLLMProvider()
             mock_provider_factory.return_value = mock_provider
 
             result = await layer.execute_parallel(
-                "Test input",
-                execution_context=execution_context
+                "Test input", execution_context=execution_context
             )
 
             assert isinstance(result, LayerResult)
@@ -223,12 +231,12 @@ class TestLayerErrorHandling:
     async def test_fail_fast_policy(self):
         """Test FAIL_FAST error policy."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        nodes = [Node('generate', config), Node('generate', config)]
+        nodes = [Node("generate", config), Node("generate", config)]
 
         layer_config = LayerConfig(error_policy=ErrorPolicy.FAIL_FAST)
         layer = Layer(nodes, layer_config=layer_config)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             # First call succeeds, second fails
             call_count = 0
 
@@ -239,14 +247,21 @@ class TestLayerErrorHandling:
                     raise Exception("Simulated failure")
 
                 from nons.core.types import ExecutionMetrics, TokenUsage, CostInfo
+
                 metrics = ExecutionMetrics(
                     execution_time=0.5,
-                    token_usage=TokenUsage(prompt_tokens=10, completion_tokens=15, total_tokens=25),
-                    cost_info=CostInfo(cost_usd=0.001, provider=config.provider, model_name=config.model_name),
+                    token_usage=TokenUsage(
+                        prompt_tokens=10, completion_tokens=15, total_tokens=25
+                    ),
+                    cost_info=CostInfo(
+                        cost_usd=0.001,
+                        provider=config.provider,
+                        model_name=config.model_name,
+                    ),
                     provider=config.provider,
                     model_name=config.model_name,
                     success=True,
-                    timestamp=1234567890.0
+                    timestamp=1234567890.0,
                 )
                 return "Success", metrics
 
@@ -260,12 +275,16 @@ class TestLayerErrorHandling:
     async def test_skip_and_continue_policy(self):
         """Test SKIP_AND_CONTINUE error policy."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        nodes = [Node('generate', config), Node('generate', config), Node('generate', config)]
+        nodes = [
+            Node("generate", config),
+            Node("generate", config),
+            Node("generate", config),
+        ]
 
         layer_config = LayerConfig(error_policy=ErrorPolicy.SKIP_AND_CONTINUE)
         layer = Layer(nodes, layer_config=layer_config)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             # Second call fails, others succeed
             call_count = 0
 
@@ -276,14 +295,21 @@ class TestLayerErrorHandling:
                     raise Exception("Simulated failure")
 
                 from nons.core.types import ExecutionMetrics, TokenUsage, CostInfo
+
                 metrics = ExecutionMetrics(
                     execution_time=0.5,
-                    token_usage=TokenUsage(prompt_tokens=10, completion_tokens=15, total_tokens=25),
-                    cost_info=CostInfo(cost_usd=0.001, provider=config.provider, model_name=config.model_name),
+                    token_usage=TokenUsage(
+                        prompt_tokens=10, completion_tokens=15, total_tokens=25
+                    ),
+                    cost_info=CostInfo(
+                        cost_usd=0.001,
+                        provider=config.provider,
+                        model_name=config.model_name,
+                    ),
                     provider=config.provider,
                     model_name=config.model_name,
                     success=True,
-                    timestamp=1234567890.0
+                    timestamp=1234567890.0,
                 )
                 return f"Success {call_count}", metrics
 
@@ -302,16 +328,16 @@ class TestLayerErrorHandling:
     async def test_retry_with_backoff_policy(self):
         """Test RETRY_WITH_BACKOFF error policy."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        nodes = [Node('generate', config)]
+        nodes = [Node("generate", config)]
 
         layer_config = LayerConfig(
             error_policy=ErrorPolicy.RETRY_WITH_BACKOFF,
             max_retries=2,
-            retry_delay_seconds=0.1  # Fast retry for testing
+            retry_delay_seconds=0.1,  # Fast retry for testing
         )
         layer = Layer(nodes, layer_config=layer_config)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             # Fail twice, then succeed
             attempt_count = 0
 
@@ -322,14 +348,21 @@ class TestLayerErrorHandling:
                     raise Exception(f"Attempt {attempt_count} failed")
 
                 from nons.core.types import ExecutionMetrics, TokenUsage, CostInfo
+
                 metrics = ExecutionMetrics(
                     execution_time=0.5,
-                    token_usage=TokenUsage(prompt_tokens=10, completion_tokens=15, total_tokens=25),
-                    cost_info=CostInfo(cost_usd=0.001, provider=config.provider, model_name=config.model_name),
+                    token_usage=TokenUsage(
+                        prompt_tokens=10, completion_tokens=15, total_tokens=25
+                    ),
+                    cost_info=CostInfo(
+                        cost_usd=0.001,
+                        provider=config.provider,
+                        model_name=config.model_name,
+                    ),
                     provider=config.provider,
                     model_name=config.model_name,
                     success=True,
-                    timestamp=1234567890.0
+                    timestamp=1234567890.0,
                 )
                 return "Success after retries", metrics
 
@@ -347,15 +380,15 @@ class TestLayerErrorHandling:
     async def test_return_partial_policy(self):
         """Test RETURN_PARTIAL error policy."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        nodes = [Node('generate', config), Node('generate', config)]
+        nodes = [Node("generate", config), Node("generate", config)]
 
         layer_config = LayerConfig(
             error_policy=ErrorPolicy.RETURN_PARTIAL,
-            min_success_threshold=0.5  # Require at least 50% success
+            min_success_threshold=0.5,  # Require at least 50% success
         )
         layer = Layer(nodes, layer_config=layer_config)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             # One succeeds, one fails
             call_count = 0
 
@@ -366,14 +399,21 @@ class TestLayerErrorHandling:
                     raise Exception("Second node failed")
 
                 from nons.core.types import ExecutionMetrics, TokenUsage, CostInfo
+
                 metrics = ExecutionMetrics(
                     execution_time=0.5,
-                    token_usage=TokenUsage(prompt_tokens=10, completion_tokens=15, total_tokens=25),
-                    cost_info=CostInfo(cost_usd=0.001, provider=config.provider, model_name=config.model_name),
+                    token_usage=TokenUsage(
+                        prompt_tokens=10, completion_tokens=15, total_tokens=25
+                    ),
+                    cost_info=CostInfo(
+                        cost_usd=0.001,
+                        provider=config.provider,
+                        model_name=config.model_name,
+                    ),
                     provider=config.provider,
                     model_name=config.model_name,
                     success=True,
-                    timestamp=1234567890.0
+                    timestamp=1234567890.0,
                 )
                 return "Success", metrics
 
@@ -399,9 +439,9 @@ class TestLayerCreationHelpers:
         """Test create_parallel_layer helper function."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
         nodes = [
-            Node('generate', config),
-            Node('generate', config),
-            Node('generate', config)
+            Node("generate", config),
+            Node("generate", config),
+            Node("generate", config),
         ]
 
         layer = create_parallel_layer(nodes)
@@ -412,7 +452,9 @@ class TestLayerCreationHelpers:
 
     def test_create_parallel_layer_empty_list(self):
         """Test create_parallel_layer with empty list."""
-        with pytest.raises(ValueError, match="Cannot create layer from empty node list"):
+        with pytest.raises(
+            ValueError, match="Cannot create layer from empty node list"
+        ):
             create_parallel_layer([])
 
     def test_create_parallel_layer_invalid_types(self):
@@ -422,30 +464,33 @@ class TestLayerCreationHelpers:
 
     def test_from_operators_class_method(self):
         """Test Layer.from_operators class method."""
-        operator_names = ['generate', 'generate', 'transform']
+        operator_names = ["generate", "generate", "transform"]
 
         layer = Layer.from_operators(operator_names)
 
         assert isinstance(layer, Layer)
         assert len(layer.nodes) == 3
-        assert layer.nodes[0].operator_name == 'generate'
-        assert layer.nodes[1].operator_name == 'generate'
-        assert layer.nodes[2].operator_name == 'transform'
+        assert layer.nodes[0].operator_name == "generate"
+        assert layer.nodes[1].operator_name == "generate"
+        assert layer.nodes[2].operator_name == "transform"
 
     def test_from_operators_with_config(self):
         """Test Layer.from_operators with custom configuration."""
-        operator_names = ['generate', 'transform']
+        operator_names = ["generate", "transform"]
         layer_config = LayerConfig(error_policy=ErrorPolicy.SKIP_AND_CONTINUE)
-        node_config = ModelConfig(provider=ModelProvider.ANTHROPIC, model_name="claude-3-haiku-20240307")
+        node_config = ModelConfig(
+            provider=ModelProvider.ANTHROPIC, model_name="claude-3-haiku-20240307"
+        )
 
         layer = Layer.from_operators(
-            operator_names,
-            layer_config=layer_config,
-            model_config=node_config
+            operator_names, layer_config=layer_config, model_config=node_config
         )
 
         assert layer.layer_config.error_policy == ErrorPolicy.SKIP_AND_CONTINUE
-        assert all(node.model_config.provider == ModelProvider.ANTHROPIC for node in layer.nodes)
+        assert all(
+            node.model_config.provider == ModelProvider.ANTHROPIC
+            for node in layer.nodes
+        )
 
 
 class TestLayerStringRepresentation:
@@ -459,35 +504,35 @@ class TestLayerStringRepresentation:
         """Test layer string representation."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
         nodes = [
-            Node('generate', config),
-            Node('transform', config),
-            Node('classify', config)
+            Node("generate", config),
+            Node("transform", config),
+            Node("classify", config),
         ]
         layer = Layer(nodes)
 
         str_repr = str(layer)
 
         # Check that key information is included
-        assert 'Layer' in str_repr
-        assert 'generate' in str_repr
-        assert 'transform' in str_repr
-        assert 'classify' in str_repr
+        assert "Layer" in str_repr
+        assert "generate" in str_repr
+        assert "transform" in str_repr
+        assert "classify" in str_repr
         assert str(len(nodes)) in str_repr
 
     def test_layer_repr_representation(self):
         """Test layer repr representation."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        nodes = [Node('generate', config)]
+        nodes = [Node("generate", config)]
         layer = Layer(nodes)
 
         repr_str = repr(layer)
 
-        assert 'Layer' in repr_str
+        assert "Layer" in repr_str
 
     def test_layer_len(self):
         """Test layer length method."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        nodes = [Node('generate', config) for _ in range(5)]
+        nodes = [Node("generate", config) for _ in range(5)]
         layer = Layer(nodes)
 
         assert len(layer) == 5
@@ -495,7 +540,7 @@ class TestLayerStringRepresentation:
     def test_layer_iter(self):
         """Test layer iteration."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        nodes = [Node('generate', config) for _ in range(3)]
+        nodes = [Node("generate", config) for _ in range(3)]
         layer = Layer(nodes)
 
         iterated_nodes = list(layer)
@@ -514,12 +559,12 @@ class TestLayerTimeout:
     async def test_layer_timeout(self):
         """Test layer execution timeout."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        nodes = [Node('generate', config)]
+        nodes = [Node("generate", config)]
 
         layer_config = LayerConfig(timeout_seconds=0.1)  # Very short timeout
         layer = Layer(nodes, layer_config=layer_config)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             # Create a slow provider
             async def slow_completion(prompt, config):
                 await asyncio.sleep(0.2)  # Longer than timeout
@@ -544,13 +589,13 @@ class TestLayerIntegration:
     async def test_layer_with_multiplied_nodes(self):
         """Test layer execution with multiplied nodes."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        base_node = Node('generate', config)
+        base_node = Node("generate", config)
 
         # Create layer from multiplied nodes
         multiplied_nodes = base_node * 4
         layer = create_parallel_layer(multiplied_nodes)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = MockLLMProvider()
             mock_provider_factory.return_value = mock_provider
 
@@ -563,16 +608,14 @@ class TestLayerIntegration:
         """Test layer with different operator types."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
         nodes = [
-            Node('generate', config),
-            Node('transform', config),
-            Node('classify', config)
+            Node("generate", config),
+            Node("transform", config),
+            Node("classify", config),
         ]
         layer = Layer(nodes)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
-            mock_provider = MockLLMProvider({
-                "default": "Mixed operator response"
-            })
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
+            mock_provider = MockLLMProvider({"default": "Mixed operator response"})
             mock_provider_factory.return_value = mock_provider
 
             result = await layer.execute_parallel("Test input")

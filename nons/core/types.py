@@ -21,13 +21,15 @@ All operator chains must maintain type compatibility.
 
 
 # Generic Structured Output
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class StructuredOutput(BaseModel, Generic[T]):
     """
     Validated structured data container for complex operator outputs.
     Used when operators return lists, dicts, or complex objects.
     """
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     data: T
@@ -50,6 +52,7 @@ class StructuredOutput(BaseModel, Generic[T]):
 # Operator-specific return types
 class Classification(TypedDict):
     """Classification result with confidence and reasoning."""
+
     category: str
     confidence: float
     reasoning: Optional[str]
@@ -57,6 +60,7 @@ class Classification(TypedDict):
 
 class ValidationResult(TypedDict):
     """Validation result with boolean outcome and reasoning."""
+
     is_valid: bool
     validation_reasoning: str
     confidence: float
@@ -64,6 +68,7 @@ class ValidationResult(TypedDict):
 
 class ComparisonAnalysis(TypedDict):
     """Structured comparison analysis between content pieces."""
+
     differences: List[str]
     similarities: List[str]
     conclusion: str
@@ -71,6 +76,7 @@ class ComparisonAnalysis(TypedDict):
 
 class RouteDecision(TypedDict):
     """Routing decision with selected path and confidence."""
+
     selected_path: str
     routing_confidence: float
     reasoning: str
@@ -104,9 +110,11 @@ ComparisonDimensions = str
 RoutingLogic = str
 """String specification defining routing decision logic."""
 
+
 # Enum types for configuration
 class ErrorPolicy(str, Enum):
     """Error handling policies for nodes and layers."""
+
     FAIL_FAST = "fail_fast"
     RETRY_WITH_BACKOFF = "retry_with_backoff"
     FALLBACK_MODEL = "fallback_model"
@@ -116,6 +124,7 @@ class ErrorPolicy(str, Enum):
 
 class ModelProvider(str, Enum):
     """Supported model providers."""
+
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
@@ -125,6 +134,7 @@ class ModelProvider(str, Enum):
 # Configuration types
 class ModelConfig(BaseModel):
     """Configuration for model provider and parameters."""
+
     provider: ModelProvider
     model_name: str
     temperature: float = 0.7
@@ -140,6 +150,7 @@ class ModelConfig(BaseModel):
 
 class LayerConfig(BaseModel):
     """Configuration for layer-level behavior."""
+
     timeout_seconds: float = 30.0
     error_policy: ErrorPolicy = ErrorPolicy.RETRY_WITH_BACKOFF
     min_success_threshold: float = 1.0  # For RETURN_PARTIAL policy
@@ -149,6 +160,7 @@ class LayerConfig(BaseModel):
 
 class NetworkConfig(BaseModel):
     """Configuration for network-level behavior."""
+
     max_concurrent_layers: int = 1  # Sequential by default
     global_timeout_seconds: float = 300.0
     enable_tracing: bool = True
@@ -158,6 +170,7 @@ class NetworkConfig(BaseModel):
 # Rate limiting types
 class RateLimitConfig(BaseModel):
     """Rate limit configuration for model providers."""
+
     requests_per_minute: int = 60
     tokens_per_minute: int = 150000
     concurrent_requests: int = 10
@@ -166,6 +179,7 @@ class RateLimitConfig(BaseModel):
 # Input/Output schemas for operators
 class InputSchema(BaseModel):
     """Schema defining required and optional inputs for operators."""
+
     required_params: List[str]
     optional_params: List[str] = []
     param_types: Dict[str, str] = {}
@@ -173,12 +187,14 @@ class InputSchema(BaseModel):
 
 class OutputSchema(BaseModel):
     """Schema defining expected output types for operators."""
+
     return_type: str
     description: str
 
 
 class OperatorMetadata(BaseModel):
     """Metadata for operator documentation and registry."""
+
     name: str
     description: str
     examples: List[str] = []
@@ -188,6 +204,7 @@ class OperatorMetadata(BaseModel):
 # Execution context types
 class ExecutionContext(BaseModel):
     """Context passed through the execution pipeline."""
+
     request_id: str
     trace_id: str
     layer_index: int
@@ -199,36 +216,39 @@ class ExecutionContext(BaseModel):
 # Cost and token tracking types
 class TokenUsage(BaseModel):
     """Token usage information from LLM API calls."""
+
     prompt_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
 
-    def __add__(self, other: 'TokenUsage') -> 'TokenUsage':
+    def __add__(self, other: "TokenUsage") -> "TokenUsage":
         """Add two TokenUsage objects together."""
         return TokenUsage(
             prompt_tokens=self.prompt_tokens + other.prompt_tokens,
             completion_tokens=self.completion_tokens + other.completion_tokens,
-            total_tokens=self.total_tokens + other.total_tokens
+            total_tokens=self.total_tokens + other.total_tokens,
         )
 
 
 class CostInfo(BaseModel):
     """Cost information for LLM API calls."""
+
     input_cost_usd: float = 0.0
     output_cost_usd: float = 0.0
     total_cost_usd: float = 0.0
 
-    def __add__(self, other: 'CostInfo') -> 'CostInfo':
+    def __add__(self, other: "CostInfo") -> "CostInfo":
         """Add two CostInfo objects together."""
         return CostInfo(
             input_cost_usd=self.input_cost_usd + other.input_cost_usd,
             output_cost_usd=self.output_cost_usd + other.output_cost_usd,
-            total_cost_usd=self.total_cost_usd + other.total_cost_usd
+            total_cost_usd=self.total_cost_usd + other.total_cost_usd,
         )
 
 
 class ExecutionMetrics(BaseModel):
     """Comprehensive execution metrics for a single API call."""
+
     token_usage: TokenUsage = TokenUsage()
     cost_info: CostInfo = CostInfo()
     model_name: str = ""
@@ -236,14 +256,22 @@ class ExecutionMetrics(BaseModel):
     request_id: Optional[str] = None
     response_time_ms: float = 0.0
 
-    def __add__(self, other: 'ExecutionMetrics') -> 'ExecutionMetrics':
+    def __add__(self, other: "ExecutionMetrics") -> "ExecutionMetrics":
         """Aggregate two ExecutionMetrics objects."""
         return ExecutionMetrics(
             token_usage=self.token_usage + other.token_usage,
             cost_info=self.cost_info + other.cost_info,
-            model_name=f"{self.model_name},{other.model_name}" if self.model_name != other.model_name else self.model_name,
-            provider=f"{self.provider},{other.provider}" if self.provider != other.provider else self.provider,
-            response_time_ms=self.response_time_ms + other.response_time_ms
+            model_name=(
+                f"{self.model_name},{other.model_name}"
+                if self.model_name != other.model_name
+                else self.model_name
+            ),
+            provider=(
+                f"{self.provider},{other.provider}"
+                if self.provider != other.provider
+                else self.provider
+            ),
+            response_time_ms=self.response_time_ms + other.response_time_ms,
         )
 
 
@@ -273,14 +301,16 @@ PRICING_INFO = {
         "gemini-2.0-flash-001": {"input": 0.075, "output": 0.3},
         "gemini-2.0-flash-lite": {"input": 0.075, "output": 0.3},
         "gemini-2.5-flash-lite": {"input": 0.075, "output": 0.3},
-    }
+    },
 }
 
 
 def calculate_cost(token_usage: TokenUsage, model_name: str, provider: str) -> CostInfo:
     """Calculate cost based on token usage and model pricing."""
     provider_pricing = PRICING_INFO.get(provider.lower(), {})
-    model_pricing = provider_pricing.get(model_name.lower(), {"input": 0.0, "output": 0.0})
+    model_pricing = provider_pricing.get(
+        model_name.lower(), {"input": 0.0, "output": 0.0}
+    )
 
     input_cost = (token_usage.prompt_tokens / 1_000_000) * model_pricing["input"]
     output_cost = (token_usage.completion_tokens / 1_000_000) * model_pricing["output"]
@@ -288,36 +318,42 @@ def calculate_cost(token_usage: TokenUsage, model_name: str, provider: str) -> C
     return CostInfo(
         input_cost_usd=input_cost,
         output_cost_usd=output_cost,
-        total_cost_usd=input_cost + output_cost
+        total_cost_usd=input_cost + output_cost,
     )
 
 
 # Exception types for better error handling
 class NoNError(Exception):
     """Base exception for NoN system errors."""
+
     pass
 
 
 class OperatorError(NoNError):
     """Errors related to operator execution."""
+
     pass
 
 
 class ValidationError(NoNError):
     """Errors related to type validation."""
+
     pass
 
 
 class ConfigurationError(NoNError):
     """Errors related to configuration."""
+
     pass
 
 
 class RateLimitError(NoNError):
     """Errors related to rate limiting."""
+
     pass
 
 
 class NetworkError(NoNError):
     """Errors related to network execution."""
+
     pass

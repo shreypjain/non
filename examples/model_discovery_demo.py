@@ -12,7 +12,7 @@ import os
 import time
 
 # Add the nons package to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from nons.core.types import ModelConfig, ModelProvider
 from nons.utils.providers import create_provider, test_provider
@@ -30,7 +30,7 @@ async def test_openai_models():
         "gpt-4",
         "gpt-4-turbo",
         "gpt-3.5-turbo",
-        "gpt-3.5-turbo-16k"
+        "gpt-3.5-turbo-16k",
     ]
 
     accessible_models = []
@@ -41,7 +41,7 @@ async def test_openai_models():
             provider=ModelProvider.OPENAI,
             model_name=model,
             temperature=0.7,
-            max_tokens=50
+            max_tokens=50,
         )
 
         result = await test_provider(config)
@@ -58,7 +58,9 @@ async def test_openai_models():
         # Small delay to avoid rate limits
         await asyncio.sleep(0.5)
 
-    print(f"\n📊 OpenAI Summary: {len(accessible_models)}/{len(models_to_test)} models accessible")
+    print(
+        f"\n📊 OpenAI Summary: {len(accessible_models)}/{len(models_to_test)} models accessible"
+    )
     if accessible_models:
         print(f"✅ Accessible: {', '.join(accessible_models)}")
     print()
@@ -76,7 +78,7 @@ async def test_anthropic_models():
         "claude-3-opus-20240229",
         "claude-3-sonnet-20240229",
         "claude-3-haiku-20240307",
-        "claude-instant-1.2"
+        "claude-instant-1.2",
     ]
 
     accessible_models = []
@@ -87,7 +89,7 @@ async def test_anthropic_models():
             provider=ModelProvider.ANTHROPIC,
             model_name=model,
             temperature=0.7,
-            max_tokens=50
+            max_tokens=50,
         )
 
         result = await test_provider(config)
@@ -104,7 +106,9 @@ async def test_anthropic_models():
         # Small delay to avoid rate limits
         await asyncio.sleep(0.5)
 
-    print(f"\n📊 Anthropic Summary: {len(accessible_models)}/{len(models_to_test)} models accessible")
+    print(
+        f"\n📊 Anthropic Summary: {len(accessible_models)}/{len(models_to_test)} models accessible"
+    )
     if accessible_models:
         print(f"✅ Accessible: {', '.join(accessible_models)}")
     print()
@@ -120,7 +124,7 @@ async def test_rate_limits():
         provider=ModelProvider.ANTHROPIC,
         model_name="claude-3-haiku-20240307",
         temperature=0.7,
-        max_tokens=10
+        max_tokens=10,
     )
 
     print("Making 5 rapid successive calls to test rate limits...")
@@ -137,7 +141,7 @@ async def test_rate_limits():
             print(f"  Call {i+1}: ✅ {(end-start)*1000:.0f}ms")
         else:
             print(f"  Call {i+1}: ❌ {result['error'][:50]}...")
-            if "rate" in result['error'].lower():
+            if "rate" in result["error"].lower():
                 print("    ^ Rate limit detected!")
                 break
 
@@ -163,7 +167,7 @@ async def test_token_limits():
             provider=ModelProvider.ANTHROPIC,
             model_name="claude-3-haiku-20240307",
             temperature=0.7,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
         )
 
         # Use a prompt that would generate a long response
@@ -173,7 +177,9 @@ async def test_token_limits():
                 "Write a detailed explanation of machine learning algorithms"
             )
 
-            print(f"  ✅ {max_tokens} tokens: Generated {metrics.token_usage.completion_tokens} tokens")
+            print(
+                f"  ✅ {max_tokens} tokens: Generated {metrics.token_usage.completion_tokens} tokens"
+            )
             print(f"     Cost: ${metrics.cost_info.total_cost_usd:.6f}")
 
         except Exception as e:

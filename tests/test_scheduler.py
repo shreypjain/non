@@ -1,13 +1,20 @@
 """
 Tests for request scheduler with rate limiting.
 """
+
 import pytest
 import asyncio
 import time
 from unittest.mock import patch, AsyncMock, MagicMock
 from nons.core.scheduler import (
-    RequestScheduler, RateLimitConfig, QueueStrategy, BackoffStrategy,
-    configure_scheduler, get_scheduler, start_scheduler, stop_scheduler
+    RequestScheduler,
+    RateLimitConfig,
+    QueueStrategy,
+    BackoffStrategy,
+    configure_scheduler,
+    get_scheduler,
+    start_scheduler,
+    stop_scheduler,
 )
 from nons.core.types import ModelProvider, ModelConfig
 
@@ -25,7 +32,7 @@ class TestRateLimitConfig:
             backoff_strategy=BackoffStrategy.EXPONENTIAL,
             backoff_base_delay=1.0,
             backoff_max_delay=30.0,
-            backoff_multiplier=2.0
+            backoff_multiplier=2.0,
         )
 
         assert config.requests_per_minute == 60
@@ -63,18 +70,15 @@ class TestRequestScheduler:
         """Test scheduler with custom rate limits."""
         rate_limits = {
             ModelProvider.OPENAI: RateLimitConfig(
-                requests_per_minute=100,
-                max_concurrent=15
+                requests_per_minute=100, max_concurrent=15
             ),
             ModelProvider.ANTHROPIC: RateLimitConfig(
-                requests_per_minute=200,
-                max_concurrent=20
-            )
+                requests_per_minute=200, max_concurrent=20
+            ),
         }
 
         scheduler = RequestScheduler(
-            default_rate_limits=rate_limits,
-            queue_strategy=QueueStrategy.FIFO
+            default_rate_limits=rate_limits, queue_strategy=QueueStrategy.FIFO
         )
 
         assert scheduler.queue_strategy == QueueStrategy.FIFO
@@ -110,7 +114,7 @@ class TestRequestScheduler:
                 estimated_tokens=10,
                 component_type="test",
                 component_id="test-123",
-                value="test_input"
+                value="test_input",
             )
 
             assert result == "processed: test_input"
@@ -123,9 +127,7 @@ class TestRequestScheduler:
         await scheduler.start()
 
         config = ModelConfig(
-            provider=ModelProvider.MOCK,
-            model_name="test-model",
-            temperature=0.7
+            provider=ModelProvider.MOCK, model_name="test-model", temperature=0.7
         )
 
         async def mock_operation(prompt, config):
@@ -137,7 +139,7 @@ class TestRequestScheduler:
                 provider=ModelProvider.MOCK,
                 model_config=config,
                 prompt="test prompt",
-                config=config
+                config=config,
             )
 
             assert result == "response to: test prompt"
@@ -148,8 +150,7 @@ class TestRequestScheduler:
         """Test concurrent request limiting."""
         rate_limits = {
             ModelProvider.MOCK: RateLimitConfig(
-                max_concurrent=2,
-                requests_per_minute=60
+                max_concurrent=2, requests_per_minute=60
             )
         }
 
@@ -165,9 +166,7 @@ class TestRequestScheduler:
             # Start 3 operations simultaneously (limit is 2)
             tasks = [
                 scheduler.schedule_request(
-                    operation=slow_operation,
-                    provider=ModelProvider.MOCK,
-                    delay=0.1
+                    operation=slow_operation, provider=ModelProvider.MOCK, delay=0.1
                 )
                 for _ in range(3)
             ]
@@ -206,20 +205,20 @@ class TestRequestScheduler:
                     operation=tracking_operation,
                     provider=ModelProvider.MOCK,
                     priority=1,  # Low priority
-                    name="low"
+                    name="low",
                 ),
                 scheduler.schedule_request(
                     operation=tracking_operation,
                     provider=ModelProvider.MOCK,
                     priority=10,  # High priority
-                    name="high"
+                    name="high",
                 ),
                 scheduler.schedule_request(
                     operation=tracking_operation,
                     provider=ModelProvider.MOCK,
                     priority=5,  # Medium priority
-                    name="medium"
-                )
+                    name="medium",
+                ),
             ]
 
             await asyncio.gather(*tasks)
@@ -234,8 +233,7 @@ class TestRequestScheduler:
         """Test that rate limiting introduces appropriate delays."""
         rate_limits = {
             ModelProvider.MOCK: RateLimitConfig(
-                requests_per_second=2,  # 2 requests per second
-                max_concurrent=10
+                requests_per_second=2, max_concurrent=10  # 2 requests per second
             )
         }
 
@@ -251,8 +249,7 @@ class TestRequestScheduler:
 
             tasks = [
                 scheduler.schedule_request(
-                    operation=fast_operation,
-                    provider=ModelProvider.MOCK
+                    operation=fast_operation, provider=ModelProvider.MOCK
                 )
                 for _ in range(3)
             ]
@@ -282,8 +279,7 @@ class TestRequestScheduler:
         try:
             with pytest.raises(Exception, match="Simulated failure"):
                 await scheduler.schedule_request(
-                    operation=failing_operation,
-                    provider=ModelProvider.MOCK
+                    operation=failing_operation, provider=ModelProvider.MOCK
                 )
         finally:
             await scheduler.stop()
@@ -315,8 +311,7 @@ class TestRequestScheduler:
             # Execute some operations
             for _ in range(3):
                 await scheduler.schedule_request(
-                    operation=test_operation,
-                    provider=ModelProvider.MOCK
+                    operation=test_operation, provider=ModelProvider.MOCK
                 )
 
             stats = scheduler.get_stats()
@@ -341,14 +336,12 @@ class TestGlobalSchedulerFunctions:
         """Test configuring the global scheduler."""
         rate_limits = {
             ModelProvider.ANTHROPIC: RateLimitConfig(
-                requests_per_minute=120,
-                max_concurrent=8
+                requests_per_minute=120, max_concurrent=8
             )
         }
 
         scheduler = configure_scheduler(
-            rate_limits=rate_limits,
-            queue_strategy=QueueStrategy.ROUND_ROBIN
+            rate_limits=rate_limits, queue_strategy=QueueStrategy.ROUND_ROBIN
         )
 
         assert isinstance(scheduler, RequestScheduler)
@@ -377,8 +370,7 @@ class TestGlobalSchedulerFunctions:
         """Test using scheduler in context manager pattern."""
         rate_limits = {
             ModelProvider.MOCK: RateLimitConfig(
-                requests_per_minute=60,
-                max_concurrent=5
+                requests_per_minute=60, max_concurrent=5
             )
         }
 
@@ -392,8 +384,7 @@ class TestGlobalSchedulerFunctions:
 
         try:
             result = await scheduler.schedule_request(
-                operation=test_operation,
-                provider=ModelProvider.MOCK
+                operation=test_operation, provider=ModelProvider.MOCK
             )
 
             assert result == "test_result"
@@ -422,7 +413,7 @@ class TestQueueStrategies:
                 task = scheduler.schedule_request(
                     operation=tracking_operation,
                     provider=ModelProvider.MOCK,
-                    name=f"request_{i}"
+                    name=f"request_{i}",
                 )
                 tasks.append(task)
 
@@ -451,18 +442,18 @@ class TestQueueStrategies:
                 scheduler.schedule_request(
                     operation=tracking_operation,
                     provider=ModelProvider.MOCK,
-                    provider_name="mock"
+                    provider_name="mock",
                 ),
                 scheduler.schedule_request(
                     operation=tracking_operation,
                     provider=ModelProvider.ANTHROPIC,
-                    provider_name="anthropic"
+                    provider_name="anthropic",
                 ),
                 scheduler.schedule_request(
                     operation=tracking_operation,
                     provider=ModelProvider.OPENAI,
-                    provider_name="openai"
-                )
+                    provider_name="openai",
+                ),
             ]
 
             await asyncio.gather(*tasks)
@@ -483,7 +474,7 @@ class TestSchedulerIntegration:
 
     async def test_scheduler_with_observability(self):
         """Test scheduler integration with observability."""
-        with patch('nons.observability.integration.get_observability') as mock_obs:
+        with patch("nons.observability.integration.get_observability") as mock_obs:
             mock_manager = MagicMock()
             mock_manager.start_operation.return_value = MagicMock()
             mock_manager.finish_operation.return_value = None
@@ -500,7 +491,7 @@ class TestSchedulerIntegration:
                     operation=test_operation,
                     provider=ModelProvider.MOCK,
                     component_type="test",
-                    component_id="test-123"
+                    component_id="test-123",
                 )
 
                 assert result == "success"
@@ -519,8 +510,7 @@ class TestSchedulerIntegration:
         # Configure scheduler
         rate_limits = {
             ModelProvider.MOCK: RateLimitConfig(
-                requests_per_minute=120,
-                max_concurrent=5
+                requests_per_minute=120, max_concurrent=5
             )
         }
 
@@ -534,10 +524,11 @@ class TestSchedulerIntegration:
             # Import operators for the test
             import nons.operators.base
 
-            node = Node('generate', model_config=config)
+            node = Node("generate", model_config=config)
 
-            with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+            with patch("nons.utils.providers.create_provider") as mock_provider_factory:
                 from tests.conftest import MockLLMProvider
+
                 mock_provider = MockLLMProvider()
                 mock_provider_factory.return_value = mock_provider
 
@@ -571,8 +562,7 @@ class TestSchedulerErrorScenarios:
             # This should fail (no retry logic in basic scheduler)
             with pytest.raises(Exception, match="Failure 1"):
                 await scheduler.schedule_request(
-                    operation=intermittent_failure,
-                    provider=ModelProvider.MOCK
+                    operation=intermittent_failure, provider=ModelProvider.MOCK
                 )
 
         finally:
@@ -590,8 +580,7 @@ class TestSchedulerErrorScenarios:
 
         # Don't await these - they should be cleaned up on stop
         scheduler.schedule_request(
-            operation=long_operation,
-            provider=ModelProvider.MOCK
+            operation=long_operation, provider=ModelProvider.MOCK
         )
 
         # Stop scheduler - should handle cleanup gracefully

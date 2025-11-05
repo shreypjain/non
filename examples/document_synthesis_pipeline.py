@@ -12,9 +12,13 @@ This example demonstrates a complex pipeline where:
 import asyncio
 import sys
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add the nons package to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Import operators to ensure they're registered
 import nons.operators.base
@@ -37,10 +41,12 @@ DOCUMENTS = [
     "Renewable energy sources like solar and wind power are becoming more cost-effective. Energy storage technology is key to making these sources reliable for grid-scale deployment.",
     "The human microbiome contains trillions of bacteria that influence digestion, immunity, and even mental health. Probiotic research is uncovering new therapeutic possibilities.",
     "Virtual reality technology is being used for training simulations in fields like surgery, aviation, and military operations. VR therapy shows promise for treating PTSD and phobias.",
-    "Ancient civilizations like the Maya and Egyptians developed sophisticated astronomical knowledge. Their calendars and monuments show remarkable precision in tracking celestial events."
+    "Ancient civilizations like the Maya and Egyptians developed sophisticated astronomical knowledge. Their calendars and monuments show remarkable precision in tracking celestial events.",
 ]
 
-RELEVANCY_QUERY = "Which document is most relevant to healthcare and medical technology?"
+RELEVANCY_QUERY = (
+    "Which document is most relevant to healthcare and medical technology?"
+)
 
 
 async def demo_document_synthesis_pipeline():
@@ -60,20 +66,17 @@ async def demo_document_synthesis_pipeline():
     print()
 
     # Create nodes for the pipeline
-    # We'll use compare operator which can analyze multiple documents
-    compare_node = Node('compare', model_config=ModelConfig(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=150
-    ))
+    # We'll use generate operator to analyze and select most relevant document
+    # Using default config which will pick the first available provider (Gemini, Anthropic, or OpenAI)
+    select_node = Node("generate")
 
-    # Create 3 parallel comparison nodes for groups (3, 3, 4)
-    compare_group1 = compare_node.clone()  # Will handle docs 0-2
-    compare_group2 = compare_node.clone()  # Will handle docs 3-5
-    compare_group3 = compare_node.clone()  # Will handle docs 6-9
+    # Create 3 parallel selection nodes for groups (3, 3, 4)
+    select_group1 = select_node.clone()  # Will handle docs 0-2
+    select_group2 = select_node.clone()  # Will handle docs 3-5
+    select_group3 = select_node.clone()  # Will handle docs 6-9
 
-    # Create final comparison node
-    final_compare = compare_node.clone()
+    # Create final selection node
+    final_select = select_node.clone()
 
     print("🏗️  Building pipeline:")
     print("  Layer 1: 3 parallel comparison nodes (groups of 3, 3, 4 documents)")
@@ -81,8 +84,8 @@ async def demo_document_synthesis_pipeline():
     print()
 
     # Create layers manually to have control over input distribution
-    layer1 = Layer([compare_group1, compare_group2, compare_group3])
-    layer2 = Layer([final_compare])
+    layer1 = Layer([select_group1, select_group2, select_group3])
+    layer2 = Layer([final_select])
 
     print("🚀 Executing Layer 1: Comparing documents in 3 groups...")
     print()
@@ -99,11 +102,15 @@ async def demo_document_synthesis_pipeline():
 
     # Execute layer 1 with different inputs for each node
     # We need to format the comparison inputs
-    inputs_layer1 = [
-        f"Query: {RELEVANCY_QUERY}\n\nCompare these documents and select the most relevant:\n\nDoc A: {group1_docs[0]}\n\nDoc B: {group1_docs[1]}\n\nDoc C: {group1_docs[2]}",
-        f"Query: {RELEVANCY_QUERY}\n\nCompare these documents and select the most relevant:\n\nDoc A: {group2_docs[0]}\n\nDoc B: {group2_docs[1]}\n\nDoc C: {group2_docs[2]}",
-        f"Query: {RELEVANCY_QUERY}\n\nCompare these documents and select the most relevant:\n\nDoc A: {group3_docs[0]}\n\nDoc B: {group3_docs[1]}\n\nDoc C: {group3_docs[2]}\n\nDoc D: {group3_docs[3]}"
-    ]
+    group_docs = [group1_docs, group2_docs, group3_docs]
+    inputs_layer1 = []
+    for docs in group_docs:
+        doc_strs = []
+        for idx, doc in enumerate(docs, 1):
+            doc_strs.append(f"Doc {idx}: {doc}")
+        compare_str = "\n\n".join(doc_strs)
+        prompt = f"Query: {RELEVANCY_QUERY}\n\nCompare these documents and select the most relevant:\n\n{compare_str}"
+        inputs_layer1.append(prompt)
 
     layer1_result = await layer1.execute_parallel(inputs_layer1)
 
@@ -145,7 +152,9 @@ async def demo_document_synthesis_pipeline():
     print(f"  Groups in Layer 1: 3 (sizes: 3, 3, 4)")
     print(f"  Layer 1 execution time: {layer1_result.execution_time:.3f}s")
     print(f"  Layer 2 execution time: {layer2_result.execution_time:.3f}s")
-    print(f"  Total pipeline time: {layer1_result.execution_time + layer2_result.execution_time:.3f}s")
+    print(
+        f"  Total pipeline time: {layer1_result.execution_time + layer2_result.execution_time:.3f}s"
+    )
     print()
 
 
@@ -158,18 +167,17 @@ async def demo_alternative_with_network():
 
     print("🏗️  Building network with multiplication operator...")
 
-    # Create a compare node and multiply for parallel execution
-    compare_node = Node('compare', model_config=ModelConfig(
-        provider=ModelProvider.MOCK,
-        model_name="mock-model",
-        max_tokens=150
-    ))
+    # Create a generate node and multiply for parallel execution
+    # Using default config which will pick the first available provider
+    compare_node = Node("generate")
 
     # Create network: 3 parallel comparisons -> 1 final comparison
-    network = NoN.from_operators([
-        compare_node * 3,  # Layer 1: 3 parallel compare nodes
-        'compare'          # Layer 2: 1 final compare node
-    ])
+    network = NoN.from_operators(
+        [
+            compare_node * 3,  # Layer 1: 3 parallel generate nodes
+            "generate",  # Layer 2: 1 final generate node
+        ]
+    )
 
     print(f"✅ Network created with {len(network.layers)} layers:")
     for i, layer in enumerate(network.layers):
@@ -194,7 +202,11 @@ async def demo_alternative_with_network():
     print()
 
     print("📋 Final Result:")
-    final_preview = str(result.final_output)[:100] + "..." if len(str(result.final_output)) > 100 else str(result.final_output)
+    final_preview = (
+        str(result.final_output)[:100] + "..."
+        if len(str(result.final_output)) > 100
+        else str(result.final_output)
+    )
     print(f"  {final_preview}")
     print()
 
@@ -220,7 +232,9 @@ async def main():
     print("✅ Demo completed successfully!")
     print()
     print("💡 Key Takeaways:")
-    print("  • Manual Layer execution gives fine-grained control over input distribution")
+    print(
+        "  • Manual Layer execution gives fine-grained control over input distribution"
+    )
     print("  • Can split documents into uneven groups (3, 3, 4)")
     print("  • Parallel comparison nodes process groups independently")
     print("  • Final comparison selects best from group winners")

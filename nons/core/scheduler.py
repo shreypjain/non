@@ -22,6 +22,7 @@ from ..observability.tracing import SpanKind
 
 class QueueStrategy(str, Enum):
     """Request queue strategies."""
+
     FIFO = "fifo"  # First In, First Out
     PRIORITY = "priority"  # Priority-based scheduling
     ROUND_ROBIN = "round_robin"  # Round robin across providers
@@ -30,6 +31,7 @@ class QueueStrategy(str, Enum):
 
 class BackoffStrategy(str, Enum):
     """Backoff strategies for rate limiting."""
+
     LINEAR = "linear"
     EXPONENTIAL = "exponential"
     FIXED = "fixed"
@@ -38,6 +40,7 @@ class BackoffStrategy(str, Enum):
 @dataclass
 class RateLimitConfig:
     """Configuration for rate limiting."""
+
     requests_per_minute: int = 60
     requests_per_second: Optional[int] = None
     tokens_per_minute: Optional[int] = None
@@ -51,6 +54,7 @@ class RateLimitConfig:
 @dataclass
 class RequestItem:
     """Individual request item in the queue."""
+
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: float = field(default_factory=time.time)
     priority: int = 0  # Higher numbers = higher priority
@@ -79,6 +83,7 @@ class RequestItem:
 @dataclass
 class ProviderStats:
     """Statistics for a provider."""
+
     requests_in_queue: int = 0
     requests_in_flight: int = 0
     requests_completed: int = 0
@@ -110,7 +115,7 @@ class RequestScheduler:
         self,
         default_rate_limits: Optional[Dict[ModelProvider, RateLimitConfig]] = None,
         queue_strategy: QueueStrategy = QueueStrategy.PRIORITY,
-        enable_observability: bool = True
+        enable_observability: bool = True,
     ):
         self.queue_strategy = queue_strategy
         self.enable_observability = enable_observability
@@ -151,24 +156,23 @@ class RequestScheduler:
                 requests_per_minute=500,
                 requests_per_second=10,
                 tokens_per_minute=200000,
-                max_concurrent=20
+                max_concurrent=20,
             ),
             ModelProvider.ANTHROPIC: RateLimitConfig(
                 requests_per_minute=1000,
                 requests_per_second=15,
                 tokens_per_minute=400000,
-                max_concurrent=25
+                max_concurrent=25,
             ),
             ModelProvider.GOOGLE: RateLimitConfig(
                 requests_per_minute=1500,
                 requests_per_second=20,
                 tokens_per_minute=1000000,
-                max_concurrent=30
+                max_concurrent=30,
             ),
             ModelProvider.MOCK: RateLimitConfig(
-                requests_per_minute=10000,
-                max_concurrent=100
-            )
+                requests_per_minute=10000, max_concurrent=100
+            ),
         }
 
     async def start(self) -> None:
@@ -185,12 +189,14 @@ class RequestScheduler:
                 operation_name="scheduler_start",
                 kind=SpanKind.OPERATOR,
                 component_type="scheduler",
-                component_id="global"
+                component_id="global",
             ) as span:
-                span.add_tags({
-                    "queue_strategy": self.queue_strategy.value,
-                    "providers": [p.value for p in self.rate_limits.keys()]
-                })
+                span.add_tags(
+                    {
+                        "queue_strategy": self.queue_strategy.value,
+                        "providers": [p.value for p in self.rate_limits.keys()],
+                    }
+                )
 
     async def stop(self) -> None:
         """Stop the request scheduler."""
@@ -219,7 +225,7 @@ class RequestScheduler:
         component_type: str = "",
         component_id: str = "",
         *args,
-        **kwargs
+        **kwargs,
     ) -> Any:
         """
         Schedule a request for execution.
@@ -246,7 +252,7 @@ class RequestScheduler:
             priority=priority,
             estimated_tokens=estimated_tokens,
             component_type=component_type,
-            component_id=component_id
+            component_id=component_id,
         )
 
         # Add to appropriate queue
@@ -264,14 +270,16 @@ class RequestScheduler:
                 operation_name="request_scheduled",
                 kind=SpanKind.OPERATOR,
                 component_type="scheduler",
-                component_id=request_item.request_id
+                component_id=request_item.request_id,
             ) as span:
-                span.add_tags({
-                    "provider": provider.value,
-                    "priority": priority,
-                    "estimated_tokens": estimated_tokens,
-                    "queue_length": len(self.request_queues[provider])
-                })
+                span.add_tags(
+                    {
+                        "provider": provider.value,
+                        "priority": priority,
+                        "estimated_tokens": estimated_tokens,
+                        "queue_length": len(self.request_queues[provider]),
+                    }
+                )
 
         # Wait for the request to complete
         return await request_item.future
@@ -299,7 +307,7 @@ class RequestScheduler:
                         "Scheduler loop error",
                         component_type="scheduler",
                         error_type=type(e).__name__,
-                        error_message=str(e)
+                        error_message=str(e),
                     )
                 await asyncio.sleep(1.0)  # Back off on errors
 
@@ -322,7 +330,7 @@ class RequestScheduler:
     async def _process_least_loaded(self) -> None:
         """Process the least loaded provider first."""
         # Find provider with smallest queue + in-flight ratio
-        min_load = float('inf')
+        min_load = float("inf")
         least_loaded_provider = None
 
         for provider, stats in self.provider_stats.items():
@@ -378,7 +386,9 @@ class RequestScheduler:
         if config.requests_per_minute:
             # Clean old timestamps
             cutoff_time = current_time - 60.0
-            while stats.request_timestamps and stats.request_timestamps[0] < cutoff_time:
+            while (
+                stats.request_timestamps and stats.request_timestamps[0] < cutoff_time
+            ):
                 stats.request_timestamps.popleft()
 
             if len(stats.request_timestamps) >= config.requests_per_minute:
@@ -387,8 +397,10 @@ class RequestScheduler:
         # Check tokens per minute
         if config.tokens_per_minute:
             # Clean old token counts
-            while (stats.tokens_per_minute_window and
-                   stats.tokens_per_minute_window[0][1] < current_time - 60.0):
+            while (
+                stats.tokens_per_minute_window
+                and stats.tokens_per_minute_window[0][1] < current_time - 60.0
+            ):
                 stats.tokens_per_minute_window.popleft()
 
             total_tokens = sum(count for count, _ in stats.tokens_per_minute_window)
@@ -421,22 +433,22 @@ class RequestScheduler:
                         operation_name="request_execution",
                         kind=SpanKind.LLM_CALL,
                         component_type=request_item.component_type,
-                        component_id=request_item.component_id
+                        component_id=request_item.component_id,
                     ) as span:
-                        span.add_tags({
-                            "provider": provider.value,
-                            "request_id": request_item.request_id,
-                            "estimated_tokens": request_item.estimated_tokens
-                        })
+                        span.add_tags(
+                            {
+                                "provider": provider.value,
+                                "request_id": request_item.request_id,
+                                "estimated_tokens": request_item.estimated_tokens,
+                            }
+                        )
 
                         result = await request_item.operation(
-                            *request_item.args,
-                            **request_item.kwargs
+                            *request_item.args, **request_item.kwargs
                         )
                 else:
                     result = await request_item.operation(
-                        *request_item.args,
-                        **request_item.kwargs
+                        *request_item.args, **request_item.kwargs
                     )
 
                 # Set the result
@@ -448,7 +460,9 @@ class RequestScheduler:
                 stats = self.provider_stats[provider]
                 stats.requests_completed += 1
                 stats.total_request_time += execution_time
-                stats.avg_request_time = stats.total_request_time / stats.requests_completed
+                stats.avg_request_time = (
+                    stats.total_request_time / stats.requests_completed
+                )
 
         except Exception as e:
             # Handle errors
@@ -466,7 +480,7 @@ class RequestScheduler:
                     component_id=request_item.component_id,
                     provider=provider.value,
                     error_type=type(e).__name__,
-                    error_message=str(e)
+                    error_message=str(e),
                 )
 
         finally:
@@ -482,7 +496,7 @@ class RequestScheduler:
             "is_running": self.is_running,
             "queue_strategy": self.queue_strategy.value,
             "total_active_requests": len(self.active_requests),
-            "providers": {}
+            "providers": {},
         }
 
         for provider, provider_stats in self.provider_stats.items():
@@ -491,8 +505,10 @@ class RequestScheduler:
             # Get rate limit config if available
             rate_config = self.rate_limits.get(provider)
             rate_limit_config = {
-                "requests_per_minute": rate_config.requests_per_minute if rate_config else 0,
-                "max_concurrent": rate_config.max_concurrent if rate_config else 0
+                "requests_per_minute": (
+                    rate_config.requests_per_minute if rate_config else 0
+                ),
+                "max_concurrent": rate_config.max_concurrent if rate_config else 0,
             }
 
             stats["providers"][provider.value] = {
@@ -503,15 +519,13 @@ class RequestScheduler:
                 "requests_rate_limited": provider_stats.requests_rate_limited,
                 "avg_request_time": provider_stats.avg_request_time,
                 "total_tokens_used": provider_stats.total_tokens_used,
-                "rate_limit_config": rate_limit_config
+                "rate_limit_config": rate_limit_config,
             }
 
         return stats
 
     def update_rate_limits(
-        self,
-        provider: ModelProvider,
-        config: RateLimitConfig
+        self, provider: ModelProvider, config: RateLimitConfig
     ) -> None:
         """Update rate limits for a provider."""
         self.rate_limits[provider] = config
@@ -544,14 +558,14 @@ def get_scheduler() -> RequestScheduler:
 def configure_scheduler(
     rate_limits: Optional[Dict[ModelProvider, RateLimitConfig]] = None,
     queue_strategy: QueueStrategy = QueueStrategy.PRIORITY,
-    enable_observability: bool = True
+    enable_observability: bool = True,
 ) -> RequestScheduler:
     """Configure the global request scheduler."""
     global _request_scheduler
     _request_scheduler = RequestScheduler(
         default_rate_limits=rate_limits,
         queue_strategy=queue_strategy,
-        enable_observability=enable_observability
+        enable_observability=enable_observability,
     )
     return _request_scheduler
 

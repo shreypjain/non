@@ -1,13 +1,20 @@
 """
 Tests for Node class with mocked LLM calls.
 """
+
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 import uuid
 from nons.core.node import Node
 from nons.core.types import (
-    ModelConfig, ModelProvider, ExecutionMetrics, TokenUsage, CostInfo,
-    OperatorError, ValidationError, ExecutionContext
+    ModelConfig,
+    ModelProvider,
+    ExecutionMetrics,
+    TokenUsage,
+    CostInfo,
+    OperatorError,
+    ValidationError,
+    ExecutionContext,
 )
 from tests.conftest import MockLLMProvider, assert_execution_metrics, assert_node_state
 
@@ -22,14 +29,12 @@ class TestNodeInitialization:
     def test_node_basic_initialization(self):
         """Test basic node initialization."""
         config = ModelConfig(
-            provider=ModelProvider.MOCK,
-            model_name="test-model",
-            temperature=0.7
+            provider=ModelProvider.MOCK, model_name="test-model", temperature=0.7
         )
 
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
-        assert node.operator_name == 'generate'
+        assert node.operator_name == "generate"
         assert node.model_config == config
         assert node.node_id is not None
         assert isinstance(node.node_id, str)
@@ -44,7 +49,7 @@ class TestNodeInitialization:
         custom_id = "custom-node-123"
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
 
-        node = Node('generate', model_config=config, node_id=custom_id)
+        node = Node("generate", model_config=config, node_id=custom_id)
 
         assert node.node_id == custom_id
 
@@ -53,7 +58,7 @@ class TestNodeInitialization:
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
         context = "You are a helpful assistant specialized in testing."
 
-        node = Node('generate', model_config=config, additional_prompt_context=context)
+        node = Node("generate", model_config=config, additional_prompt_context=context)
 
         assert node.additional_prompt_context == context
 
@@ -62,14 +67,14 @@ class TestNodeInitialization:
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
 
         with pytest.raises(ValidationError, match="Failed to create node"):
-            Node('nonexistent', model_config=config)
+            Node("nonexistent", model_config=config)
 
     def test_node_auto_generated_id_uniqueness(self):
         """Test that auto-generated IDs are unique."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
 
-        node1 = Node('generate', model_config=config)
-        node2 = Node('generate', model_config=config)
+        node1 = Node("generate", model_config=config)
+        node2 = Node("generate", model_config=config)
 
         assert node1.node_id != node2.node_id
 
@@ -84,12 +89,10 @@ class TestNodeExecution:
     async def test_basic_node_execution(self):
         """Test basic node execution."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
-            mock_provider = MockLLMProvider({
-                "default": "Mock generated response"
-            })
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
+            mock_provider = MockLLMProvider({"default": "Mock generated response"})
             mock_provider_factory.return_value = mock_provider
 
             result = await node.execute(prompt="Test prompt")
@@ -107,20 +110,16 @@ class TestNodeExecution:
     async def test_node_execution_with_context(self):
         """Test node execution with execution context."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
-        execution_context = ExecutionContext(
-            trace_id="test-trace",
-            user_id="test-user"
-        )
+        execution_context = ExecutionContext(trace_id="test-trace", user_id="test-user")
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = MockLLMProvider()
             mock_provider_factory.return_value = mock_provider
 
             result = await node.execute(
-                prompt="Test prompt",
-                execution_context=execution_context
+                prompt="Test prompt", execution_context=execution_context
             )
 
             assert result is not None
@@ -129,15 +128,15 @@ class TestNodeExecution:
     async def test_node_execution_multiple_calls(self):
         """Test multiple executions on the same node."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
         responses = {
             "First prompt": "First response",
             "Second prompt": "Second response",
-            "default": "Default response"
+            "default": "Default response",
         }
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = MockLLMProvider(responses)
             mock_provider_factory.return_value = mock_provider
 
@@ -157,9 +156,9 @@ class TestNodeExecution:
         """Test node execution with additional prompt context."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
         context = "You are a test assistant."
-        node = Node('generate', model_config=config, additional_prompt_context=context)
+        node = Node("generate", model_config=config, additional_prompt_context=context)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = MockLLMProvider()
             mock_provider_factory.return_value = mock_provider
 
@@ -173,11 +172,13 @@ class TestNodeExecution:
     async def test_node_execution_with_scheduler(self):
         """Test node execution with request scheduler."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
-        with patch('nons.core.scheduler.get_scheduler') as mock_get_scheduler:
+        with patch("nons.core.scheduler.get_scheduler") as mock_get_scheduler:
             mock_scheduler = AsyncMock()
-            mock_scheduler.schedule_request = AsyncMock(return_value="Scheduled response")
+            mock_scheduler.schedule_request = AsyncMock(
+                return_value="Scheduled response"
+            )
             mock_get_scheduler.return_value = mock_scheduler
 
             result = await node.execute(prompt="Test prompt")
@@ -188,9 +189,9 @@ class TestNodeExecution:
     async def test_node_execution_error_handling(self):
         """Test node execution error handling."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_completion.side_effect = Exception("Provider error")
             mock_provider_factory.return_value = mock_provider
@@ -213,19 +214,17 @@ class TestNodeConfiguration:
     def test_configure_model(self):
         """Test model configuration update."""
         initial_config = ModelConfig(
-            provider=ModelProvider.MOCK,
-            model_name="initial-model",
-            temperature=0.5
+            provider=ModelProvider.MOCK, model_name="initial-model", temperature=0.5
         )
 
-        node = Node('generate', model_config=initial_config)
+        node = Node("generate", model_config=initial_config)
 
         # Update configuration
         node.configure_model(
             provider=ModelProvider.ANTHROPIC,
             model_name="claude-3-haiku-20240307",
             temperature=0.8,
-            max_tokens=200
+            max_tokens=200,
         )
 
         assert node.model_config.provider == ModelProvider.ANTHROPIC
@@ -239,18 +238,18 @@ class TestNodeConfiguration:
             provider=ModelProvider.MOCK,
             model_name="initial-model",
             temperature=0.5,
-            max_tokens=100
+            max_tokens=100,
         )
 
-        node = Node('generate', model_config=initial_config)
+        node = Node("generate", model_config=initial_config)
 
         # Partial update
         node.configure_model(temperature=0.9)
 
         assert node.model_config.provider == ModelProvider.MOCK  # Unchanged
-        assert node.model_config.model_name == "initial-model"    # Unchanged
-        assert node.model_config.temperature == 0.9              # Updated
-        assert node.model_config.max_tokens == 100               # Unchanged
+        assert node.model_config.model_name == "initial-model"  # Unchanged
+        assert node.model_config.temperature == 0.9  # Updated
+        assert node.model_config.max_tokens == 100  # Unchanged
 
 
 class TestNodeCloning:
@@ -263,7 +262,11 @@ class TestNodeCloning:
     def test_clone_basic(self):
         """Test basic node cloning."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        original = Node('generate', model_config=config, additional_prompt_context="Original context")
+        original = Node(
+            "generate",
+            model_config=config,
+            additional_prompt_context="Original context",
+        )
 
         clone = original.clone()
 
@@ -282,7 +285,7 @@ class TestNodeCloning:
     def test_clone_with_custom_id(self):
         """Test node cloning with custom ID."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        original = Node('generate', model_config=config)
+        original = Node("generate", model_config=config)
 
         custom_id = "custom-clone-id"
         clone = original.clone(new_node_id=custom_id)
@@ -292,11 +295,11 @@ class TestNodeCloning:
     async def test_clone_independence(self):
         """Test that cloned nodes are independent."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        original = Node('generate', model_config=config)
+        original = Node("generate", model_config=config)
 
         clone = original.clone()
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = MockLLMProvider()
             mock_provider_factory.return_value = mock_provider
 
@@ -320,7 +323,7 @@ class TestNodeMultiplication:
     def test_multiplication_operator(self):
         """Test node multiplication operator."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
         # Test right multiplication: node * 3
         clones = node * 3
@@ -333,7 +336,7 @@ class TestNodeMultiplication:
     def test_reverse_multiplication_operator(self):
         """Test node reverse multiplication operator."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
         # Test left multiplication: 5 * node
         clones = 5 * node
@@ -346,12 +349,16 @@ class TestNodeMultiplication:
     def test_multiplication_invalid_count(self):
         """Test multiplication with invalid count."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
-        with pytest.raises(ValueError, match="Multiplication count must be a positive integer"):
+        with pytest.raises(
+            ValueError, match="Multiplication count must be a positive integer"
+        ):
             _ = node * 0
 
-        with pytest.raises(ValueError, match="Multiplication count must be a positive integer"):
+        with pytest.raises(
+            ValueError, match="Multiplication count must be a positive integer"
+        ):
             _ = node * -1
 
         with pytest.raises(TypeError):
@@ -360,7 +367,7 @@ class TestNodeMultiplication:
     def test_multiplication_clone_independence(self):
         """Test that multiplied nodes are independent clones."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        original = Node('generate', model_config=config)
+        original = Node("generate", model_config=config)
 
         clones = original * 3
 
@@ -384,27 +391,27 @@ class TestNodeStringRepresentation:
         config = ModelConfig(
             provider=ModelProvider.ANTHROPIC,
             model_name="claude-3-haiku-20240307",
-            temperature=0.7
+            temperature=0.7,
         )
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
         str_repr = str(node)
 
         # Check that key information is included
-        assert 'generate' in str_repr
-        assert 'claude-3-haiku-20240307' in str_repr
-        assert 'ANTHROPIC' in str_repr
+        assert "generate" in str_repr
+        assert "claude-3-haiku-20240307" in str_repr
+        assert "ANTHROPIC" in str_repr
         assert node.node_id[:8] in str_repr
 
     def test_node_repr_representation(self):
         """Test node repr representation."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
         repr_str = repr(node)
 
-        assert 'Node' in repr_str
-        assert 'generate' in repr_str
+        assert "Node" in repr_str
+        assert "generate" in repr_str
 
 
 class TestNodeMetrics:
@@ -417,9 +424,9 @@ class TestNodeMetrics:
     async def test_cost_tracking(self):
         """Test that costs are tracked correctly."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             # Create mock provider with specific cost
             mock_provider = MockLLMProvider()
 
@@ -427,12 +434,18 @@ class TestNodeMetrics:
             async def mock_completion(prompt, config):
                 metrics = ExecutionMetrics(
                     execution_time=1.0,
-                    token_usage=TokenUsage(prompt_tokens=10, completion_tokens=20, total_tokens=30),
-                    cost_info=CostInfo(cost_usd=0.005, provider=config.provider, model_name=config.model_name),
+                    token_usage=TokenUsage(
+                        prompt_tokens=10, completion_tokens=20, total_tokens=30
+                    ),
+                    cost_info=CostInfo(
+                        cost_usd=0.005,
+                        provider=config.provider,
+                        model_name=config.model_name,
+                    ),
                     provider=config.provider,
                     model_name=config.model_name,
                     success=True,
-                    timestamp=1234567890.0
+                    timestamp=1234567890.0,
                 )
                 return "Response", metrics
 
@@ -445,14 +458,14 @@ class TestNodeMetrics:
 
             assert node._execution_count == 2
             assert node.get_total_cost() == 0.01  # 2 x 0.005
-            assert node.get_total_tokens() == 60   # 2 x 30
+            assert node.get_total_tokens() == 60  # 2 x 30
 
     async def test_token_tracking(self):
         """Test that tokens are tracked correctly."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
-        with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+        with patch("nons.utils.providers.create_provider") as mock_provider_factory:
             mock_provider = MockLLMProvider()
 
             async def mock_completion(prompt, config):
@@ -466,13 +479,17 @@ class TestNodeMetrics:
                     token_usage=TokenUsage(
                         prompt_tokens=prompt_tokens,
                         completion_tokens=completion_tokens,
-                        total_tokens=total_tokens
+                        total_tokens=total_tokens,
                     ),
-                    cost_info=CostInfo(cost_usd=0.001, provider=config.provider, model_name=config.model_name),
+                    cost_info=CostInfo(
+                        cost_usd=0.001,
+                        provider=config.provider,
+                        model_name=config.model_name,
+                    ),
                     provider=config.provider,
                     model_name=config.model_name,
                     success=True,
-                    timestamp=1234567890.0
+                    timestamp=1234567890.0,
                 )
                 return "Response", metrics
 
@@ -498,15 +515,15 @@ class TestNodeIntegration:
     async def test_node_with_observability(self):
         """Test node execution with observability."""
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
-        node = Node('generate', model_config=config)
+        node = Node("generate", model_config=config)
 
-        with patch('nons.observability.integration.get_observability') as mock_obs:
+        with patch("nons.observability.integration.get_observability") as mock_obs:
             mock_manager = MagicMock()
             mock_manager.start_operation.return_value = MagicMock()
             mock_manager.finish_operation.return_value = None
             mock_obs.return_value = mock_manager
 
-            with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+            with patch("nons.utils.providers.create_provider") as mock_provider_factory:
                 mock_provider = MockLLMProvider()
                 mock_provider_factory.return_value = mock_provider
 
@@ -521,22 +538,26 @@ class TestNodeIntegration:
         config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
 
         # Test different operators
-        operators_to_test = ['generate', 'transform', 'classify']
+        operators_to_test = ["generate", "transform", "classify"]
 
         for op_name in operators_to_test:
             node = Node(op_name, model_config=config)
 
-            with patch('nons.utils.providers.create_provider') as mock_provider_factory:
+            with patch("nons.utils.providers.create_provider") as mock_provider_factory:
                 mock_provider = MockLLMProvider()
                 mock_provider_factory.return_value = mock_provider
 
                 # Execute with appropriate parameters for each operator
-                if op_name == 'generate':
+                if op_name == "generate":
                     result = await node.execute(prompt="Test prompt")
-                elif op_name == 'transform':
-                    result = await node.execute(text="Test text", target_format="summary")
-                elif op_name == 'classify':
-                    result = await node.execute(text="Test text", categories=["positive", "negative"])
+                elif op_name == "transform":
+                    result = await node.execute(
+                        text="Test text", target_format="summary"
+                    )
+                elif op_name == "classify":
+                    result = await node.execute(
+                        text="Test text", categories=["positive", "negative"]
+                    )
 
                 assert result is not None
                 assert node._execution_count == 1

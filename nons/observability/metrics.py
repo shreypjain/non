@@ -18,6 +18,7 @@ import statistics
 
 class MetricType(str, Enum):
     """Types of metrics."""
+
     COUNTER = "counter"
     GAUGE = "gauge"
     HISTOGRAM = "histogram"
@@ -33,6 +34,7 @@ class MetricPoint:
 
     Database-ready structure for storing time series metrics.
     """
+
     # Core identification
     metric_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: float = field(default_factory=time.time)
@@ -77,6 +79,7 @@ class MetricPoint:
 @dataclass
 class MetricSummary:
     """Summary statistics for a metric over a time period."""
+
     metric_name: str
     count: int = 0
     sum_value: float = 0.0
@@ -106,7 +109,9 @@ class MetricsCollector:
         self.enable_metrics = enable_metrics
         self.max_points = max_points
         self.metric_points: List[MetricPoint] = []
-        self.metric_buffers: DefaultDict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
+        self.metric_buffers: DefaultDict[str, deque] = defaultdict(
+            lambda: deque(maxlen=1000)
+        )
         self._lock = threading.RLock()
 
         # Current values for gauges
@@ -126,7 +131,7 @@ class MetricsCollector:
         span_id: Optional[str] = None,
         component_type: str = "",
         component_id: str = "",
-        **metadata
+        **metadata,
     ) -> None:
         """Record a metric point."""
         if not self.enable_metrics:
@@ -142,7 +147,7 @@ class MetricsCollector:
             span_id=span_id,
             component_type=component_type,
             component_id=component_id,
-            metadata=metadata
+            metadata=metadata,
         )
 
         with self._lock:
@@ -160,92 +165,66 @@ class MetricsCollector:
 
             # Trim if we exceed max points
             if len(self.metric_points) > self.max_points:
-                self.metric_points = self.metric_points[-self.max_points:]
+                self.metric_points = self.metric_points[-self.max_points :]
 
     def increment_counter(
-        self,
-        metric_name: str,
-        value: Union[int, float] = 1,
-        **kwargs
+        self, metric_name: str, value: Union[int, float] = 1, **kwargs
     ) -> None:
         """Increment a counter metric."""
         self.record_metric(
             metric_name=metric_name,
             value=value,
             metric_type=MetricType.COUNTER,
-            **kwargs
+            **kwargs,
         )
 
-    def set_gauge(
-        self,
-        metric_name: str,
-        value: Union[int, float],
-        **kwargs
-    ) -> None:
+    def set_gauge(self, metric_name: str, value: Union[int, float], **kwargs) -> None:
         """Set a gauge metric."""
         self.record_metric(
-            metric_name=metric_name,
-            value=value,
-            metric_type=MetricType.GAUGE,
-            **kwargs
+            metric_name=metric_name, value=value, metric_type=MetricType.GAUGE, **kwargs
         )
 
-    def record_timing(
-        self,
-        metric_name: str,
-        duration_ms: float,
-        **kwargs
-    ) -> None:
+    def record_timing(self, metric_name: str, duration_ms: float, **kwargs) -> None:
         """Record a timing metric."""
         self.record_metric(
             metric_name=metric_name,
             value=duration_ms,
             metric_type=MetricType.TIMER,
             unit="milliseconds",
-            **kwargs
+            **kwargs,
         )
 
-    def record_cost(
-        self,
-        metric_name: str,
-        cost_usd: float,
-        **kwargs
-    ) -> None:
+    def record_cost(self, metric_name: str, cost_usd: float, **kwargs) -> None:
         """Record a cost metric."""
         self.record_metric(
             metric_name=metric_name,
             value=cost_usd,
             metric_type=MetricType.COST,
             unit="usd",
-            **kwargs
+            **kwargs,
         )
 
-    def record_tokens(
-        self,
-        metric_name: str,
-        token_count: int,
-        **kwargs
-    ) -> None:
+    def record_tokens(self, metric_name: str, token_count: int, **kwargs) -> None:
         """Record a token usage metric."""
         self.record_metric(
             metric_name=metric_name,
             value=token_count,
             metric_type=MetricType.TOKEN,
             unit="tokens",
-            **kwargs
+            **kwargs,
         )
 
     def get_metric_summary(
-        self,
-        metric_name: str,
-        since: Optional[float] = None
+        self, metric_name: str, since: Optional[float] = None
     ) -> Optional[MetricSummary]:
         """Get summary statistics for a metric."""
         with self._lock:
             # Get points for this metric
             points = [
-                p for p in self.metric_points
-                if p.metric_name == metric_name and (since is None or p.timestamp >= since)
+                p
+                for p in self.metric_points
+                if p.metric_name == metric_name
+                and (since is None or p.timestamp >= since)
             ]
 
             if not points:
@@ -262,7 +241,7 @@ class MetricsCollector:
                 max_value=max(values),
                 avg_value=statistics.mean(values),
                 start_time=min(timestamps),
-                end_time=max(timestamps)
+                end_time=max(timestamps),
             )
 
             # Calculate percentiles if we have enough data
@@ -288,7 +267,7 @@ class MetricsCollector:
         self,
         metric_name: Optional[str] = None,
         since: Optional[float] = None,
-        trace_id: Optional[str] = None
+        trace_id: Optional[str] = None,
     ) -> List[MetricPoint]:
         """Get metric points with optional filtering."""
         with self._lock:
@@ -313,9 +292,7 @@ class MetricsCollector:
         return sorted(filtered, key=lambda p: p.timestamp)
 
     def export_metrics(
-        self,
-        since: Optional[float] = None,
-        metric_names: Optional[List[str]] = None
+        self, since: Optional[float] = None, metric_names: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
         """
         Export metrics in database-ready format.
@@ -356,19 +333,23 @@ class MetricsCollector:
             "oldest_point": None,
             "newest_point": None,
             "current_gauges": len(self.current_gauges),
-            "current_counters": len(self.counters)
+            "current_counters": len(self.counters),
         }
 
         if points:
             # Count by type
             for point in points:
                 metric_type = point.metric_type.value
-                stats["points_by_type"][metric_type] = stats["points_by_type"].get(metric_type, 0) + 1
+                stats["points_by_type"][metric_type] = (
+                    stats["points_by_type"].get(metric_type, 0) + 1
+                )
 
             # Count by component
             for point in points:
                 component = point.component_type or "unknown"
-                stats["points_by_component"][component] = stats["points_by_component"].get(component, 0) + 1
+                stats["points_by_component"][component] = (
+                    stats["points_by_component"].get(component, 0) + 1
+                )
 
             # Unique metrics
             stats["unique_metrics"] = len(set(p.metric_name for p in points))
@@ -420,7 +401,7 @@ class TimedOperation:
         self,
         metric_name: str,
         collector: Optional[MetricsCollector] = None,
-        **metric_kwargs
+        **metric_kwargs,
     ):
         self.metric_name = metric_name
         self.collector = collector or get_metrics_collector()
@@ -435,22 +416,16 @@ class TimedOperation:
         if self.start_time:
             duration_ms = (time.time() - self.start_time) * 1000
             self.collector.record_timing(
-                self.metric_name,
-                duration_ms,
-                **self.metric_kwargs
+                self.metric_name, duration_ms, **self.metric_kwargs
             )
 
             # Record success/failure
             status = "error" if exc_type else "success"
             self.collector.increment_counter(
-                f"{self.metric_name}.{status}",
-                **self.metric_kwargs
+                f"{self.metric_name}.{status}", **self.metric_kwargs
             )
 
 
-def timed_operation(
-    metric_name: str,
-    **metric_kwargs
-) -> TimedOperation:
+def timed_operation(metric_name: str, **metric_kwargs) -> TimedOperation:
     """Create a timed operation context manager."""
     return TimedOperation(metric_name, **metric_kwargs)

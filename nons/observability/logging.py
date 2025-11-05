@@ -21,6 +21,7 @@ import structlog
 
 class LogLevel(str, Enum):
     """Standard log levels."""
+
     DEBUG = "debug"
     INFO = "info"
     WARNING = "warning"
@@ -35,6 +36,7 @@ class LogEntry:
 
     Database-ready structure for storing log data.
     """
+
     # Core identification
     log_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: float = field(default_factory=time.time)
@@ -92,7 +94,7 @@ class DatabaseLogHandler(logging.Handler):
     Custom log handler that collects structured logs for database storage.
     """
 
-    def __init__(self, log_manager: 'LogManager'):
+    def __init__(self, log_manager: "LogManager"):
         super().__init__()
         self.log_manager = log_manager
 
@@ -112,7 +114,7 @@ class DatabaseLogHandler(logging.Handler):
                 span_id=trace_context.get("span_id") if trace_context else None,
                 filename=record.filename,
                 function_name=record.funcName,
-                line_number=record.lineno
+                line_number=record.lineno,
             )
 
             # Add extra fields if present
@@ -131,9 +133,12 @@ class DatabaseLogHandler(logging.Handler):
             # Handle exceptions
             if record.exc_info:
                 import traceback
+
                 log_entry.error_type = record.exc_info[0].__name__
                 log_entry.error_message = str(record.exc_info[1])
-                log_entry.error_stack = "".join(traceback.format_exception(*record.exc_info))
+                log_entry.error_stack = "".join(
+                    traceback.format_exception(*record.exc_info)
+                )
 
             # Store the log entry
             self.log_manager.add_log_entry(log_entry)
@@ -158,7 +163,7 @@ class LogManager:
 
         # Context variable for trace correlation
         self.trace_context: ContextVar[Optional[Dict[str, str]]] = ContextVar(
-            'trace_context', default=None
+            "trace_context", default=None
         )
 
         # Set up structured logging
@@ -173,7 +178,11 @@ class LogManager:
                 structlog.processors.StackInfoRenderer(),
                 structlog.dev.set_exc_info,
                 structlog.processors.TimeStamper(fmt="ISO"),
-                structlog.dev.ConsoleRenderer() if self.enable_logging else structlog.processors.JSONRenderer()
+                (
+                    structlog.dev.ConsoleRenderer()
+                    if self.enable_logging
+                    else structlog.processors.JSONRenderer()
+                ),
             ],
             wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
             logger_factory=structlog.PrintLoggerFactory(),
@@ -188,7 +197,9 @@ class LogManager:
         if self.enable_logging:
             # Get the underlying stdlib logger and add our handler
             stdlib_logger = logging.getLogger(name)
-            if not any(isinstance(h, DatabaseLogHandler) for h in stdlib_logger.handlers):
+            if not any(
+                isinstance(h, DatabaseLogHandler) for h in stdlib_logger.handlers
+            ):
                 db_handler = DatabaseLogHandler(self)
                 stdlib_logger.addHandler(db_handler)
                 stdlib_logger.setLevel(logging.DEBUG)
@@ -197,18 +208,12 @@ class LogManager:
 
     def set_trace_context(self, trace_id: str, span_id: str) -> None:
         """Set trace context for log correlation."""
-        context = {
-            "trace_id": trace_id,
-            "span_id": span_id
-        }
+        context = {"trace_id": trace_id, "span_id": span_id}
         self.trace_context.set(context)
 
         # Also set in structlog context
         structlog.contextvars.clear_contextvars()
-        structlog.contextvars.bind_contextvars(
-            trace_id=trace_id,
-            span_id=span_id
-        )
+        structlog.contextvars.bind_contextvars(trace_id=trace_id, span_id=span_id)
 
     def clear_trace_context(self) -> None:
         """Clear trace context."""
@@ -233,7 +238,7 @@ class LogManager:
         message: str,
         component_type: str = "",
         component_id: str = "",
-        **fields
+        **fields,
     ) -> None:
         """Log a structured message directly."""
         if not self.enable_logging:
@@ -248,7 +253,7 @@ class LogManager:
             component_id=component_id,
             trace_id=trace_context.get("trace_id") if trace_context else None,
             span_id=trace_context.get("span_id") if trace_context else None,
-            fields=fields
+            fields=fields,
         )
 
         self.add_log_entry(log_entry)
@@ -257,7 +262,7 @@ class LogManager:
         self,
         since: Optional[float] = None,
         trace_id: Optional[str] = None,
-        level: Optional[LogLevel] = None
+        level: Optional[LogLevel] = None,
     ) -> List[LogEntry]:
         """Get log entries with optional filtering."""
         with self._lock:
@@ -285,7 +290,7 @@ class LogManager:
         self,
         since: Optional[float] = None,
         trace_id: Optional[str] = None,
-        format: str = "json"
+        format: str = "json",
     ) -> Union[List[Dict[str, Any]], str]:
         """
         Export logs in database-ready format.
@@ -303,7 +308,9 @@ class LogManager:
         if format == "dict":
             return [entry.to_json_serializable() for entry in entries]
         elif format == "json":
-            return json.dumps([entry.to_json_serializable() for entry in entries], default=str)
+            return json.dumps(
+                [entry.to_json_serializable() for entry in entries], default=str
+            )
         else:
             raise ValueError(f"Unsupported format: {format}")
 
@@ -324,19 +331,23 @@ class LogManager:
             "entries_by_level": {},
             "entries_by_component": {},
             "oldest_entry": None,
-            "newest_entry": None
+            "newest_entry": None,
         }
 
         if entries:
             # Count by level
             for entry in entries:
                 level = entry.level.value
-                stats["entries_by_level"][level] = stats["entries_by_level"].get(level, 0) + 1
+                stats["entries_by_level"][level] = (
+                    stats["entries_by_level"].get(level, 0) + 1
+                )
 
             # Count by component
             for entry in entries:
                 component = entry.component_type or "unknown"
-                stats["entries_by_component"][component] = stats["entries_by_component"].get(component, 0) + 1
+                stats["entries_by_component"][component] = (
+                    stats["entries_by_component"].get(component, 0) + 1
+                )
 
             # Time range
             timestamps = [entry.timestamp for entry in entries]
@@ -382,7 +393,7 @@ class LoggedOperation:
         operation_name: str,
         component_type: str = "",
         component_id: str = "",
-        log_manager: Optional[LogManager] = None
+        log_manager: Optional[LogManager] = None,
     ):
         self.logger = logger
         self.operation_name = operation_name
@@ -394,7 +405,7 @@ class LoggedOperation:
         self.logger.info(
             f"Starting {self.operation_name}",
             component_type=self.component_type,
-            component_id=self.component_id
+            component_id=self.component_id,
         )
         return self.logger
 
@@ -405,13 +416,13 @@ class LoggedOperation:
                 component_type=self.component_type,
                 component_id=self.component_id,
                 error_type=exc_type.__name__,
-                error_message=str(exc_val)
+                error_message=str(exc_val),
             )
         else:
             self.logger.info(
                 f"Completed {self.operation_name}",
                 component_type=self.component_type,
-                component_id=self.component_id
+                component_id=self.component_id,
             )
 
 
@@ -419,7 +430,7 @@ def logged_operation(
     operation_name: str,
     component_type: str = "",
     component_id: str = "",
-    logger_name: str = "nons"
+    logger_name: str = "nons",
 ) -> LoggedOperation:
     """Create a logged operation context manager."""
     logger = get_logger(logger_name)
