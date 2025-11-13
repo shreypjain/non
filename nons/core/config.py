@@ -20,7 +20,7 @@ from .types import (
 # Default configurations
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929"
-DEFAULT_GOOGLE_MODEL = "gemini-2.0-flash"
+DEFAULT_GOOGLE_MODEL = "gemini-2.5-flash"
 DEFAULT_TEMPERATURE = 0.7
 DEFAULT_MAX_TOKENS = 4000
 

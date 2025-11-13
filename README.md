@@ -202,7 +202,7 @@ from nons.core.types import ModelConfig
 
 # Simple string format (recommended)
 config = ModelConfig.from_string(
-    "google:gemini-2.0-flash",
+    "google:gemini-2.5-flash",
     temperature=0.7,
     max_tokens=150,
     top_p=0.9

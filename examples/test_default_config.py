@@ -50,15 +50,15 @@ def test_default_model_env_var():
     print()
 
     # Test 3: Google model
-    print("Test 3: Setting NON_DEFAULT_MODEL=gemini-2.0-flash")
-    os.environ["NON_DEFAULT_MODEL"] = "gemini-2.0-flash"
+    print("Test 3: Setting NON_DEFAULT_MODEL=gemini-2.5-flash")
+    os.environ["NON_DEFAULT_MODEL"] = "gemini-2.5-flash"
     config = get_default_model_config()
 
     print(f"  Provider detected: {config.provider}")
     print(f"  Model name: {config.model_name}")
 
     assert config.provider == ModelProvider.GOOGLE, f"Expected GOOGLE, got {config.provider}"
-    assert config.model_name == "gemini-2.0-flash"
+    assert config.model_name == "gemini-2.5-flash"
     print("  ✓ Google model correctly detected")
     print()
 

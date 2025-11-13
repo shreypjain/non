@@ -49,23 +49,23 @@ def test_provider_string_parsing():
 
     # Test 3: Google explicit format (using "google" prefix)
     print("Test 3: Google explicit format")
-    config = ModelConfig.from_string("google:gemini-2.0-flash")
-    print(f"  Input: 'google:gemini-2.0-flash'")
+    config = ModelConfig.from_string("google:gemini-2.5-flash")
+    print(f"  Input: 'google:gemini-2.5-flash'")
     print(f"  Provider: {config.provider}")
     print(f"  Model name: {config.model_name}")
     assert config.provider == ModelProvider.GOOGLE
-    assert config.model_name == "gemini-2.0-flash"
+    assert config.model_name == "gemini-2.5-flash"
     print("  ✓ Google explicit format works")
     print()
 
     # Test 4: Google with "gemini" prefix (alternative)
     print("Test 4: Google with 'gemini' prefix")
-    config = ModelConfig.from_string("gemini:gemini-2.0-flash")
-    print(f"  Input: 'gemini:gemini-2.0-flash'")
+    config = ModelConfig.from_string("gemini:gemini-2.5-flash")
+    print(f"  Input: 'gemini:gemini-2.5-flash'")
     print(f"  Provider: {config.provider}")
     print(f"  Model name: {config.model_name}")
     assert config.provider == ModelProvider.GOOGLE
-    assert config.model_name == "gemini-2.0-flash"
+    assert config.model_name == "gemini-2.5-flash"
     print("  ✓ 'gemini:' prefix maps to Google provider")
     print()
 
@@ -162,13 +162,13 @@ def test_env_var_with_provider_prefix():
 
     # Test 3: Google with prefix
     print("Test 3: NON_DEFAULT_MODEL with 'google:' prefix")
-    os.environ["NON_DEFAULT_MODEL"] = "google:gemini-2.0-flash"
+    os.environ["NON_DEFAULT_MODEL"] = "google:gemini-2.5-flash"
     config = get_default_model_config()
     print(f"  Env var: {os.environ['NON_DEFAULT_MODEL']}")
     print(f"  Provider: {config.provider}")
     print(f"  Model name: {config.model_name}")
     assert config.provider == ModelProvider.GOOGLE
-    assert config.model_name == "gemini-2.0-flash"
+    assert config.model_name == "gemini-2.5-flash"
     print("  ✓ Google with provider prefix works")
     print()
 
