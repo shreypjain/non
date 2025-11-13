@@ -31,6 +31,7 @@ def get_default_model_config(provider: Optional[ModelProvider] = None) -> ModelC
 
     The configuration priority is:
     1. NON_DEFAULT_MODEL - Single global default (recommended for simplicity)
+       Supports both "provider:model_name" and auto-detection formats
     2. Provider-specific defaults (NON_DEFAULT_OPENAI_MODEL, etc.)
     3. Hardcoded defaults
 
@@ -39,61 +40,55 @@ def get_default_model_config(provider: Optional[ModelProvider] = None) -> ModelC
 
     Returns:
         ModelConfig with appropriate defaults
+
+    Examples:
+        >>> os.environ["NON_DEFAULT_MODEL"] = "anthropic:claude-sonnet-4-5-20250929"
+        >>> config = get_default_model_config()
+        >>> os.environ["NON_DEFAULT_MODEL"] = "openai:gpt-4o-mini"
+        >>> config = get_default_model_config()
     """
+    # Get configuration parameters from environment
+    temperature = float(os.getenv("NON_DEFAULT_TEMPERATURE", DEFAULT_TEMPERATURE))
+    max_tokens = int(os.getenv("NON_DEFAULT_MAX_TOKENS", DEFAULT_MAX_TOKENS))
+    max_latency_ms_str = os.getenv("NON_MAX_LATENCY_MS")
+    max_latency_ms = int(max_latency_ms_str) if max_latency_ms_str else None
+    fallback_on_rate_limit = os.getenv("NON_FALLBACK_ON_RATE_LIMIT", "true").lower() == "true"
+
     # Check for simplified single default model first
     default_model = os.getenv("NON_DEFAULT_MODEL")
 
     if default_model:
-        # User specified a single default model - auto-detect provider from model name
-        model_name = default_model
+        # Use ModelConfig.from_string for clean parsing
+        return ModelConfig.from_string(
+            default_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            max_latency_ms=max_latency_ms,
+            fallback_on_rate_limit=fallback_on_rate_limit,
+        )
 
-        # Auto-detect provider from common model name patterns
-        if "gpt" in model_name.lower() or "o1" in model_name.lower():
-            detected_provider = ModelProvider.OPENAI
-        elif "claude" in model_name.lower():
-            detected_provider = ModelProvider.ANTHROPIC
-        elif "gemini" in model_name.lower():
-            detected_provider = ModelProvider.GOOGLE
+    # Fallback to per-provider defaults
+    if provider is None:
+        # Check for API keys to determine default provider
+        if os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"):
+            provider = ModelProvider.GOOGLE
+        elif os.getenv("ANTHROPIC_API_KEY"):
+            provider = ModelProvider.ANTHROPIC
+        elif os.getenv("OPENAI_API_KEY"):
+            provider = ModelProvider.OPENAI
         else:
-            # Fallback to provider arg or auto-detect from API keys
-            detected_provider = provider
+            # Default to Google if no keys found
+            provider = ModelProvider.GOOGLE
 
-        # Use detected provider if no explicit provider specified
-        if provider is None:
-            provider = detected_provider
+    # Set model name based on provider-specific env vars or defaults
+    if provider == ModelProvider.OPENAI:
+        model_name = os.getenv("NON_DEFAULT_OPENAI_MODEL", DEFAULT_OPENAI_MODEL)
+    elif provider == ModelProvider.ANTHROPIC:
+        model_name = os.getenv("NON_DEFAULT_ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL)
+    elif provider == ModelProvider.GOOGLE:
+        model_name = os.getenv("NON_DEFAULT_GOOGLE_MODEL", DEFAULT_GOOGLE_MODEL)
     else:
-        # Determine provider from environment or default
-        if provider is None:
-            # Check for API keys to determine default provider
-            if os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"):
-                provider = ModelProvider.GOOGLE
-            elif os.getenv("ANTHROPIC_API_KEY"):
-                provider = ModelProvider.ANTHROPIC
-            elif os.getenv("OPENAI_API_KEY"):
-                provider = ModelProvider.OPENAI
-            else:
-                # Default to Google if no keys found
-                provider = ModelProvider.GOOGLE
-
-        # Set model name based on provider-specific env vars or defaults
-        if provider == ModelProvider.OPENAI:
-            model_name = os.getenv("NON_DEFAULT_OPENAI_MODEL", DEFAULT_OPENAI_MODEL)
-        elif provider == ModelProvider.ANTHROPIC:
-            model_name = os.getenv("NON_DEFAULT_ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL)
-        elif provider == ModelProvider.GOOGLE:
-            model_name = os.getenv("NON_DEFAULT_GOOGLE_MODEL", DEFAULT_GOOGLE_MODEL)
-        else:
-            model_name = "unknown"
-
-    # Get other defaults from environment
-    temperature = float(os.getenv("NON_DEFAULT_TEMPERATURE", DEFAULT_TEMPERATURE))
-    max_tokens = int(os.getenv("NON_DEFAULT_MAX_TOKENS", DEFAULT_MAX_TOKENS))
-
-    # Get fallback configuration from environment
-    max_latency_ms_str = os.getenv("NON_MAX_LATENCY_MS")
-    max_latency_ms = int(max_latency_ms_str) if max_latency_ms_str else None
-
-    fallback_on_rate_limit = os.getenv("NON_FALLBACK_ON_RATE_LIMIT", "true").lower() == "true"
+        model_name = "unknown"
 
     return ModelConfig(
         provider=provider,

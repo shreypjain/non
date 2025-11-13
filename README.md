@@ -149,25 +149,24 @@ Set a single default model for your entire application:
 # Set your API key
 export ANTHROPIC_API_KEY="your-anthropic-key"
 
-# Set one default model for all nodes
-export NON_DEFAULT_MODEL="claude-sonnet-4-5-20250929"
+# Set one default model for all nodes (provider:model_name format)
+export NON_DEFAULT_MODEL="anthropic:claude-sonnet-4-5-20250929"
 ```
 
-The provider is automatically detected from the model name. All networks and nodes will use this model unless explicitly overridden.
+The provider can be specified explicitly with `provider:model_name` format, or auto-detected from the model name. All networks and nodes will use this model unless explicitly overridden.
 
 **Override per-node when needed:**
 
 ```python
 from nons.core.node import Node
-from nons.core.types import ModelConfig, ModelProvider
+from nons.core.types import ModelConfig
 
 # Most nodes use the default from NON_DEFAULT_MODEL
 network = NoN.from_operators(['transform', 'generate', 'condense'])
 
-# Override specific nodes with custom config
-custom_node = Node('generate', model_config=ModelConfig(
-    provider=ModelProvider.OPENAI,
-    model_name="gpt-4o-mini",
+# Override specific nodes with ModelConfig.from_string()
+custom_node = Node('generate', model_config=ModelConfig.from_string(
+    "openai:gpt-4o-mini",
     temperature=0.9
 ))
 ```
@@ -180,8 +179,10 @@ export OPENAI_API_KEY="your-openai-key"
 export ANTHROPIC_API_KEY="your-anthropic-key"
 export GOOGLE_API_KEY="your-google-key"
 
-# Default Model (Recommended)
-export NON_DEFAULT_MODEL="claude-sonnet-4-5-20250929"
+# Default Model (Recommended) - use provider:model_name format
+export NON_DEFAULT_MODEL="anthropic:claude-sonnet-4-5-20250929"
+# Or use auto-detection:
+# export NON_DEFAULT_MODEL="claude-sonnet-4-5-20250929"
 
 # Optional: Fallback configuration
 export NON_MAX_LATENCY_MS="5000"
@@ -197,19 +198,23 @@ export NON_ENABLE_TRACING="true"
 For fine-grained control, configure models programmatically:
 
 ```python
-from nons.core.types import ModelConfig, ModelProvider
+from nons.core.types import ModelConfig
 
-config = ModelConfig(
-    provider=ModelProvider.GOOGLE,
-    model_name="gemini-2.0-flash",
+# Simple string format (recommended)
+config = ModelConfig.from_string(
+    "google:gemini-2.0-flash",
     temperature=0.7,
     max_tokens=150,
-    top_p=0.9,
-    # Optional: Intelligent fallback
+    top_p=0.9
+)
+
+# With intelligent fallback
+config_with_fallback = ModelConfig.from_string(
+    "anthropic:claude-sonnet-4-5-20250929",
     max_latency_ms=5000,
     fallback_on_rate_limit=True,
     fallback_models=[
-        ModelConfig(provider=ModelProvider.OPENAI, model_name="gpt-4o-mini")
+        ModelConfig.from_string("openai:gpt-4o-mini")
     ]
 )
 ```

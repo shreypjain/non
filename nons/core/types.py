@@ -152,6 +152,83 @@ class ModelConfig(BaseModel):
     max_latency_ms: Optional[int] = None
     fallback_on_rate_limit: bool = True
 
+    @classmethod
+    def from_string(
+        cls,
+        model_string: str,
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = None,
+        **kwargs
+    ) -> "ModelConfig":
+        """
+        Create ModelConfig from a provider:model_name string.
+
+        Supports formats:
+        - "anthropic:claude-sonnet-4-5-20250929"
+        - "openai:gpt-4o-mini"
+        - "google:gemini-2.0-flash"
+        - "claude-sonnet-4-5-20250929" (auto-detects provider)
+
+        Args:
+            model_string: Either "provider:model_name" or just "model_name"
+            temperature: Model temperature parameter
+            max_tokens: Maximum tokens to generate
+            **kwargs: Additional ModelConfig parameters
+
+        Returns:
+            ModelConfig instance
+
+        Examples:
+            >>> config = ModelConfig.from_string("anthropic:claude-sonnet-4-5-20250929")
+            >>> config = ModelConfig.from_string("openai:gpt-4o-mini", temperature=0.9)
+            >>> config = ModelConfig.from_string("claude-sonnet-4-5-20250929")  # auto-detect
+        """
+        if ":" in model_string:
+            # Parse "provider:model_name" format
+            provider_str, model_name = model_string.split(":", 1)
+            provider_str = provider_str.strip().lower()
+
+            # Map provider string to enum
+            provider_map = {
+                "anthropic": ModelProvider.ANTHROPIC,
+                "openai": ModelProvider.OPENAI,
+                "google": ModelProvider.GOOGLE,
+                "gemini": ModelProvider.GOOGLE,  # Allow both "google" and "gemini"
+                "mock": ModelProvider.MOCK,
+            }
+
+            if provider_str not in provider_map:
+                raise ValueError(
+                    f"Unknown provider '{provider_str}'. "
+                    f"Supported: {', '.join(provider_map.keys())}"
+                )
+
+            provider = provider_map[provider_str]
+            model_name = model_name.strip()
+        else:
+            # Auto-detect provider from model name
+            model_name = model_string.strip()
+
+            if "gpt" in model_name.lower() or "o1" in model_name.lower():
+                provider = ModelProvider.OPENAI
+            elif "claude" in model_name.lower():
+                provider = ModelProvider.ANTHROPIC
+            elif "gemini" in model_name.lower():
+                provider = ModelProvider.GOOGLE
+            else:
+                raise ValueError(
+                    f"Could not auto-detect provider from model name '{model_name}'. "
+                    f"Use format 'provider:model_name' (e.g., 'anthropic:{model_name}')"
+                )
+
+        return cls(
+            provider=provider,
+            model_name=model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs
+        )
+
 
 class LayerConfig(BaseModel):
     """Configuration for layer-level behavior."""
