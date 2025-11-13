@@ -31,7 +31,7 @@ async def main():
         "generate",
         model_config=ModelConfig(
             provider=ModelProvider.ANTHROPIC,
-            model_name="claude-3-5-haiku-20241022",
+            model_name="claude-sonnet-4-5-20250929",
             max_tokens=100,
             temperature=0.7,
         ),
@@ -52,7 +52,7 @@ async def main():
         ["generate", "condense"],
         model_config=ModelConfig(
             provider=ModelProvider.ANTHROPIC,
-            model_name="claude-3-5-haiku-20241022",
+            model_name="claude-sonnet-4-5-20250929",
             max_tokens=150,
         ),
     )
@@ -76,7 +76,7 @@ async def main():
         "generate",
         model_config=ModelConfig(
             provider=ModelProvider.ANTHROPIC,
-            model_name="claude-3-5-haiku-20241022",
+            model_name="claude-sonnet-4-5-20250929",
             max_tokens=80,
         ),
     )
@@ -88,7 +88,7 @@ async def main():
         ["transform", parallel_generators, "condense"],
         model_config=ModelConfig(
             provider=ModelProvider.ANTHROPIC,
-            model_name="claude-3-5-haiku-20241022",
+            model_name="claude-sonnet-4-5-20250929",
             max_tokens=150,
         ),
     )

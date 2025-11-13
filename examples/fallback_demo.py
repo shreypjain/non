@@ -35,7 +35,7 @@ async def demo_latency_fallback():
     # This will likely trigger fallback to faster model
     primary_config = ModelConfig(
         provider=ModelProvider.ANTHROPIC,
-        model_name="claude-3-5-haiku-20241022",
+        model_name="claude-sonnet-4-5-20250929",
         max_tokens=50,
         max_latency_ms=10,  # Very low threshold - will likely trigger fallback
         fallback_on_rate_limit=True,
@@ -94,7 +94,7 @@ async def demo_rate_limit_awareness():
     # Create node that monitors rate limits
     config = ModelConfig(
         provider=ModelProvider.ANTHROPIC,
-        model_name="claude-3-5-haiku-20241022",
+        model_name="claude-sonnet-4-5-20250929",
         max_tokens=30,
         fallback_on_rate_limit=True,
     )
@@ -141,7 +141,7 @@ async def demo_cascading_fallback():
     # Primary -> Fallback 1 -> Fallback 2
     primary_config = ModelConfig(
         provider=ModelProvider.ANTHROPIC,
-        model_name="claude-3-5-haiku-20241022",
+        model_name="claude-sonnet-4-5-20250929",
         max_tokens=40,
     )
 
@@ -195,7 +195,7 @@ async def demo_network_with_fallbacks():
     # Create configs with fallbacks
     fast_config = ModelConfig(
         provider=ModelProvider.ANTHROPIC,
-        model_name="claude-3-5-haiku-20241022",
+        model_name="claude-sonnet-4-5-20250929",
         max_tokens=80,
         max_latency_ms=5000,
     )

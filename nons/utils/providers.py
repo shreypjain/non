@@ -57,16 +57,24 @@ def _parse_openai_rate_limits(response: Any) -> RateLimitInfo:
     - x-ratelimit-limit-tokens
     - x-ratelimit-remaining-tokens
     - x-ratelimit-reset-tokens
+
+    Note: The OpenAI Python SDK may not expose raw HTTP headers in the response object.
+    This function provides the infrastructure for when headers become accessible.
     """
     rate_limit_info = RateLimitInfo()
 
     try:
         # Try to access response headers if available
-        if hasattr(response, "_raw_response"):
+        # Note: OpenAI SDK v1+ uses httpx and may have _raw_response attribute
+        headers = None
+        if hasattr(response, "_raw_response") and hasattr(response._raw_response, "headers"):
             headers = response._raw_response.headers
+        elif hasattr(response, "response") and hasattr(response.response, "headers"):
+            headers = response.response.headers
         elif hasattr(response, "headers"):
             headers = response.headers
-        else:
+
+        if headers is None:
             return rate_limit_info
 
         # Parse request limits
@@ -103,16 +111,26 @@ def _parse_anthropic_rate_limits(response: Any) -> RateLimitInfo:
     - anthropic-ratelimit-tokens-remaining
     - anthropic-ratelimit-tokens-reset
     - retry-after (in 429 responses)
+
+    Note: The Anthropic Python SDK may not expose raw HTTP headers in the response object.
+    This function provides the infrastructure for when headers become accessible.
     """
     rate_limit_info = RateLimitInfo()
 
     try:
         # Try to access response headers
-        if hasattr(response, "headers"):
+        # Note: Anthropic SDK message objects may have http_response attribute
+        headers = None
+        if hasattr(response, "http_response") and hasattr(response.http_response, "headers"):
+            headers = response.http_response.headers
+        elif hasattr(response, "_http_response") and hasattr(response._http_response, "headers"):
+            headers = response._http_response.headers
+        elif hasattr(response, "headers"):
             headers = response.headers
         elif hasattr(response, "_headers"):
             headers = response._headers
-        else:
+
+        if headers is None:
             return rate_limit_info
 
         # Parse request limits
