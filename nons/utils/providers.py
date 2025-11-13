@@ -16,6 +16,7 @@ from ..core.types import (
     TokenUsage,
     CostInfo,
     ExecutionMetrics,
+    RateLimitInfo,
     calculate_cost,
     ModelProvider,
     OperatorError,
@@ -43,6 +44,101 @@ try:
     GOOGLE_AVAILABLE = True
 except ImportError:
     GOOGLE_AVAILABLE = False
+
+
+def _parse_openai_rate_limits(response: Any) -> RateLimitInfo:
+    """
+    Parse rate limit information from OpenAI response headers.
+
+    OpenAI includes headers like:
+    - x-ratelimit-limit-requests
+    - x-ratelimit-remaining-requests
+    - x-ratelimit-reset-requests
+    - x-ratelimit-limit-tokens
+    - x-ratelimit-remaining-tokens
+    - x-ratelimit-reset-tokens
+    """
+    rate_limit_info = RateLimitInfo()
+
+    try:
+        # Try to access response headers if available
+        if hasattr(response, "_raw_response"):
+            headers = response._raw_response.headers
+        elif hasattr(response, "headers"):
+            headers = response.headers
+        else:
+            return rate_limit_info
+
+        # Parse request limits
+        if "x-ratelimit-limit-requests" in headers:
+            rate_limit_info.requests_limit = int(headers["x-ratelimit-limit-requests"])
+        if "x-ratelimit-remaining-requests" in headers:
+            rate_limit_info.requests_remaining = int(headers["x-ratelimit-remaining-requests"])
+        if "x-ratelimit-reset-requests" in headers:
+            rate_limit_info.requests_reset = headers["x-ratelimit-reset-requests"]
+
+        # Parse token limits
+        if "x-ratelimit-limit-tokens" in headers:
+            rate_limit_info.tokens_limit = int(headers["x-ratelimit-limit-tokens"])
+        if "x-ratelimit-remaining-tokens" in headers:
+            rate_limit_info.tokens_remaining = int(headers["x-ratelimit-remaining-tokens"])
+        if "x-ratelimit-reset-tokens" in headers:
+            rate_limit_info.tokens_reset = headers["x-ratelimit-reset-tokens"]
+    except Exception:
+        # If header parsing fails, return empty rate limit info
+        pass
+
+    return rate_limit_info
+
+
+def _parse_anthropic_rate_limits(response: Any) -> RateLimitInfo:
+    """
+    Parse rate limit information from Anthropic response headers.
+
+    Anthropic includes headers like:
+    - anthropic-ratelimit-requests-limit
+    - anthropic-ratelimit-requests-remaining
+    - anthropic-ratelimit-requests-reset
+    - anthropic-ratelimit-tokens-limit
+    - anthropic-ratelimit-tokens-remaining
+    - anthropic-ratelimit-tokens-reset
+    - retry-after (in 429 responses)
+    """
+    rate_limit_info = RateLimitInfo()
+
+    try:
+        # Try to access response headers
+        if hasattr(response, "headers"):
+            headers = response.headers
+        elif hasattr(response, "_headers"):
+            headers = response._headers
+        else:
+            return rate_limit_info
+
+        # Parse request limits
+        if "anthropic-ratelimit-requests-limit" in headers:
+            rate_limit_info.requests_limit = int(headers["anthropic-ratelimit-requests-limit"])
+        if "anthropic-ratelimit-requests-remaining" in headers:
+            rate_limit_info.requests_remaining = int(headers["anthropic-ratelimit-requests-remaining"])
+        if "anthropic-ratelimit-requests-reset" in headers:
+            rate_limit_info.requests_reset = headers["anthropic-ratelimit-requests-reset"]
+
+        # Parse token limits
+        if "anthropic-ratelimit-tokens-limit" in headers:
+            rate_limit_info.tokens_limit = int(headers["anthropic-ratelimit-tokens-limit"])
+        if "anthropic-ratelimit-tokens-remaining" in headers:
+            rate_limit_info.tokens_remaining = int(headers["anthropic-ratelimit-tokens-remaining"])
+        if "anthropic-ratelimit-tokens-reset" in headers:
+            rate_limit_info.tokens_reset = headers["anthropic-ratelimit-tokens-reset"]
+
+        # Parse retry-after if present
+        if "retry-after" in headers:
+            rate_limit_info.retry_after = int(headers["retry-after"])
+    except Exception:
+        # If header parsing fails, return empty rate limit info
+        pass
+
+    return rate_limit_info
 
 
 class BaseLLMProvider(ABC):
@@ -151,9 +247,13 @@ class OpenAIProvider(BaseLLMProvider):
                 token_usage, self.model_config.model_name, self.provider_name
             )
 
+            # Parse rate limit information
+            rate_limit_info = _parse_openai_rate_limits(response)
+
             # Update metrics
             metrics.token_usage = token_usage
             metrics.cost_info = cost_info
+            metrics.rate_limit_info = rate_limit_info
             metrics.response_time_ms = (time.time() - start_time) * 1000
 
             return completion_text, metrics
@@ -236,9 +336,13 @@ class AnthropicProvider(BaseLLMProvider):
                 token_usage, self.model_config.model_name, self.provider_name
             )
 
+            # Parse rate limit information
+            rate_limit_info = _parse_anthropic_rate_limits(response)
+
             # Update metrics
             metrics.token_usage = token_usage
             metrics.cost_info = cost_info
+            metrics.rate_limit_info = rate_limit_info
             metrics.response_time_ms = (time.time() - start_time) * 1000
 
             return completion_text, metrics

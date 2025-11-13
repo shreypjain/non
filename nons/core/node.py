@@ -194,8 +194,12 @@ class Node:
         self, *args, **kwargs
     ) -> tuple[str, ExecutionMetrics]:
         """
-        Execute using LLM provider with request scheduling for rate limiting.
-        Falls back to mock provider if API calls fail.
+        Execute using LLM provider with request scheduling, rate limiting, and fallback support.
+
+        Implements intelligent fallback logic:
+        - Latency-based fallback: Switch if response exceeds max_latency_ms
+        - Rate-limit-based fallback: Switch when rate limits are reached
+        - Cascading fallback: Try each fallback model in order
 
         Args:
             *args: Arguments passed to the operator
@@ -206,9 +210,6 @@ class Node:
         """
         from .scheduler import get_scheduler
 
-        # Create provider instance
-        provider = create_provider(self.model_config)
-
         # Extract prompt from first argument (assuming first arg is the prompt)
         prompt = str(args[0]) if args else ""
 
@@ -216,42 +217,93 @@ class Node:
         if self.additional_prompt_context:
             prompt = f"{self.additional_prompt_context}\n\n{prompt}"
 
-        # Estimate token count for scheduling (rough approximation)
-        estimated_tokens = len(prompt.split()) * 1.3  # Average tokens per word
-        if self.model_config.max_tokens:
-            estimated_tokens += self.model_config.max_tokens
+        # Build list of models to try: primary + fallbacks
+        models_to_try = [self.model_config]
+        if self.model_config.fallback_models:
+            models_to_try.extend(self.model_config.fallback_models)
 
-        async def _execute_request():
-            """Internal function to execute the LLM request."""
+        last_error = None
+        last_metrics = None
+
+        # Try each model in order
+        for attempt_index, model_config in enumerate(models_to_try):
+            is_fallback = attempt_index > 0
+
             try:
-                # Generate completion with metrics
-                result, metrics = await provider.generate_completion(prompt)
+                # Create provider instance for this model
+                provider = create_provider(model_config)
+
+                # Estimate token count for scheduling (rough approximation)
+                estimated_tokens = len(prompt.split()) * 1.3  # Average tokens per word
+                if model_config.max_tokens:
+                    estimated_tokens += model_config.max_tokens
+
+                async def _execute_request():
+                    """Internal function to execute the LLM request."""
+                    result, metrics = await provider.generate_completion(prompt)
+                    return result, metrics
+
+                # Schedule the request through the global scheduler
+                scheduler = get_scheduler()
+
+                # Execute the request
+                result, metrics = await scheduler.schedule_request(
+                    operation=_execute_request,
+                    provider=model_config.provider,
+                    model_config=model_config,
+                    priority=0,  # Default priority
+                    estimated_tokens=int(estimated_tokens),
+                    component_type="node",
+                    component_id=self.node_id,
+                )
+
+                # Mark if fallback was used
+                metrics.fallback_used = is_fallback
+                if is_fallback:
+                    metrics.fallback_reason = "Previous attempt failed or exceeded limits"
+
+                # Check if we should fallback based on latency
+                if (
+                    not is_fallback
+                    and model_config.max_latency_ms
+                    and metrics.response_time_ms > model_config.max_latency_ms
+                ):
+                    # Latency exceeded, try next fallback
+                    last_metrics = metrics
+                    continue
+
+                # Check if we should consider fallback based on rate limits
+                if (
+                    not is_fallback
+                    and model_config.fallback_on_rate_limit
+                    and metrics.rate_limit_info.should_consider_fallback(threshold=0.1)
+                ):
+                    # Rate limits low, try fallback on next request
+                    # But still return this result as it completed successfully
+                    pass
+
+                # Success!
                 return result, metrics
+
             except Exception as e:
-                # If real API fails, fall back to mock provider
-                from ..utils.providers import MockProvider
+                last_error = e
+                # Try next fallback
+                continue
 
-                mock_provider = MockProvider(self.model_config)
-                result, metrics = await mock_provider.generate_completion(prompt)
-                return result, metrics
-
-        # Schedule the request through the global scheduler
-        scheduler = get_scheduler()
+        # All models failed, fall back to mock provider
+        from ..utils.providers import MockProvider
 
         try:
-            result, metrics = await scheduler.schedule_request(
-                operation=_execute_request,
-                provider=self.model_config.provider,
-                model_config=self.model_config,
-                priority=0,  # Default priority
-                estimated_tokens=int(estimated_tokens),
-                component_type="node",
-                component_id=self.node_id,
-            )
+            mock_provider = MockProvider(self.model_config)
+            result, metrics = await mock_provider.generate_completion(prompt)
+            metrics.fallback_used = True
+            metrics.fallback_reason = f"All configured models failed: {str(last_error)}"
             return result, metrics
-        except Exception as e:
-            # If scheduler fails, execute directly as fallback
-            return await _execute_request()
+        except Exception as final_error:
+            # Even mock failed, raise the last error
+            raise OperatorError(
+                f"All model attempts failed. Last error: {str(last_error or final_error)}"
+            )
 
     def get_execution_stats(self) -> Dict[str, Any]:
         """Get comprehensive execution statistics for this node."""

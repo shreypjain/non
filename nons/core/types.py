@@ -147,6 +147,11 @@ class ModelConfig(BaseModel):
     # Provider-specific parameters
     extra_params: Dict[str, Any] = {}
 
+    # Fallback configuration
+    fallback_models: Optional[List["ModelConfig"]] = None
+    max_latency_ms: Optional[int] = None
+    fallback_on_rate_limit: bool = True
+
 
 class LayerConfig(BaseModel):
     """Configuration for layer-level behavior."""
@@ -230,6 +235,40 @@ class TokenUsage(BaseModel):
         )
 
 
+class RateLimitInfo(BaseModel):
+    """Rate limit information from API response headers."""
+
+    requests_limit: Optional[int] = None
+    requests_remaining: Optional[int] = None
+    requests_reset: Optional[str] = None
+    tokens_limit: Optional[int] = None
+    tokens_remaining: Optional[int] = None
+    tokens_reset: Optional[str] = None
+    retry_after: Optional[int] = None  # Seconds to wait (from 429 response)
+
+    def is_rate_limited(self) -> bool:
+        """Check if we're currently rate limited."""
+        if self.retry_after is not None and self.retry_after > 0:
+            return True
+        if self.requests_remaining is not None and self.requests_remaining == 0:
+            return True
+        if self.tokens_remaining is not None and self.tokens_remaining == 0:
+            return True
+        return False
+
+    def should_consider_fallback(self, threshold: float = 0.1) -> bool:
+        """Check if we should consider fallback based on remaining capacity."""
+        if self.requests_limit and self.requests_remaining is not None:
+            ratio = self.requests_remaining / self.requests_limit
+            if ratio < threshold:
+                return True
+        if self.tokens_limit and self.tokens_remaining is not None:
+            ratio = self.tokens_remaining / self.tokens_limit
+            if ratio < threshold:
+                return True
+        return False
+
+
 class CostInfo(BaseModel):
     """Cost information for LLM API calls."""
 
@@ -251,10 +290,13 @@ class ExecutionMetrics(BaseModel):
 
     token_usage: TokenUsage = TokenUsage()
     cost_info: CostInfo = CostInfo()
+    rate_limit_info: RateLimitInfo = RateLimitInfo()
     model_name: str = ""
     provider: str = ""
     request_id: Optional[str] = None
     response_time_ms: float = 0.0
+    fallback_used: bool = False  # Track if fallback model was used
+    fallback_reason: Optional[str] = None  # Reason for fallback
 
     def __add__(self, other: "ExecutionMetrics") -> "ExecutionMetrics":
         """Aggregate two ExecutionMetrics objects."""

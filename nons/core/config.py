@@ -62,11 +62,19 @@ def get_default_model_config(provider: Optional[ModelProvider] = None) -> ModelC
     temperature = float(os.getenv("NON_DEFAULT_TEMPERATURE", DEFAULT_TEMPERATURE))
     max_tokens = int(os.getenv("NON_DEFAULT_MAX_TOKENS", DEFAULT_MAX_TOKENS))
 
+    # Get fallback configuration from environment
+    max_latency_ms_str = os.getenv("NON_MAX_LATENCY_MS")
+    max_latency_ms = int(max_latency_ms_str) if max_latency_ms_str else None
+
+    fallback_on_rate_limit = os.getenv("NON_FALLBACK_ON_RATE_LIMIT", "true").lower() == "true"
+
     return ModelConfig(
         provider=provider,
         model_name=model_name,
         temperature=temperature,
         max_tokens=max_tokens,
+        max_latency_ms=max_latency_ms,
+        fallback_on_rate_limit=fallback_on_rate_limit,
     )
 
 
