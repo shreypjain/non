@@ -29,34 +29,61 @@ def get_default_model_config(provider: Optional[ModelProvider] = None) -> ModelC
     """
     Get default model configuration with environment variable overrides.
 
+    The configuration priority is:
+    1. NON_DEFAULT_MODEL - Single global default (recommended for simplicity)
+    2. Provider-specific defaults (NON_DEFAULT_OPENAI_MODEL, etc.)
+    3. Hardcoded defaults
+
     Args:
-        provider: Optional provider to use (defaults to OpenAI if available)
+        provider: Optional provider to use (defaults to auto-detect from API keys)
 
     Returns:
         ModelConfig with appropriate defaults
     """
-    # Determine provider from environment or default
-    if provider is None:
-        # Check for API keys to determine default provider
-        if os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"):
-            provider = ModelProvider.GOOGLE
-        elif os.getenv("ANTHROPIC_API_KEY"):
-            provider = ModelProvider.ANTHROPIC
-        elif os.getenv("OPENAI_API_KEY"):
-            provider = ModelProvider.OPENAI
-        else:
-            # Default to Google if no keys found
-            provider = ModelProvider.GOOGLE
+    # Check for simplified single default model first
+    default_model = os.getenv("NON_DEFAULT_MODEL")
 
-    # Set model name based on provider
-    if provider == ModelProvider.OPENAI:
-        model_name = os.getenv("NON_DEFAULT_OPENAI_MODEL", DEFAULT_OPENAI_MODEL)
-    elif provider == ModelProvider.ANTHROPIC:
-        model_name = os.getenv("NON_DEFAULT_ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL)
-    elif provider == ModelProvider.GOOGLE:
-        model_name = os.getenv("NON_DEFAULT_GOOGLE_MODEL", DEFAULT_GOOGLE_MODEL)
+    if default_model:
+        # User specified a single default model - auto-detect provider from model name
+        model_name = default_model
+
+        # Auto-detect provider from common model name patterns
+        if "gpt" in model_name.lower() or "o1" in model_name.lower():
+            detected_provider = ModelProvider.OPENAI
+        elif "claude" in model_name.lower():
+            detected_provider = ModelProvider.ANTHROPIC
+        elif "gemini" in model_name.lower():
+            detected_provider = ModelProvider.GOOGLE
+        else:
+            # Fallback to provider arg or auto-detect from API keys
+            detected_provider = provider
+
+        # Use detected provider if no explicit provider specified
+        if provider is None:
+            provider = detected_provider
     else:
-        model_name = "unknown"
+        # Determine provider from environment or default
+        if provider is None:
+            # Check for API keys to determine default provider
+            if os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"):
+                provider = ModelProvider.GOOGLE
+            elif os.getenv("ANTHROPIC_API_KEY"):
+                provider = ModelProvider.ANTHROPIC
+            elif os.getenv("OPENAI_API_KEY"):
+                provider = ModelProvider.OPENAI
+            else:
+                # Default to Google if no keys found
+                provider = ModelProvider.GOOGLE
+
+        # Set model name based on provider-specific env vars or defaults
+        if provider == ModelProvider.OPENAI:
+            model_name = os.getenv("NON_DEFAULT_OPENAI_MODEL", DEFAULT_OPENAI_MODEL)
+        elif provider == ModelProvider.ANTHROPIC:
+            model_name = os.getenv("NON_DEFAULT_ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL)
+        elif provider == ModelProvider.GOOGLE:
+            model_name = os.getenv("NON_DEFAULT_GOOGLE_MODEL", DEFAULT_GOOGLE_MODEL)
+        else:
+            model_name = "unknown"
 
     # Get other defaults from environment
     temperature = float(os.getenv("NON_DEFAULT_TEMPERATURE", DEFAULT_TEMPERATURE))
