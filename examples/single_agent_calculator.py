@@ -30,6 +30,7 @@ from nons.core.network import NoN, create_network
 from nons.core.node import Node
 from nons.core.agents.agent import Agent
 from nons.core.agents.registry import ToolRegistry
+import nons.operators.base  # This registers all the base operators
 
 
 # Tool Parameter Models - Define schemas for validation
@@ -119,8 +120,8 @@ def create_reasoning_network() -> NoN:
     For more complex agents, you can add multiple layers and nodes.
     """
     # Create a single reasoning node
-    # The 'route' operator handles decision making and tool selection
-    reasoning_node = Node("route")
+    # The 'generate' operator handles LLM calls for decision making and tool selection
+    reasoning_node = Node("generate")
 
     # Create network with single layer
     network = create_network(

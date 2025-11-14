@@ -223,7 +223,7 @@ def create_python_interpreter_agent() -> Agent:
     Pattern: System prompt guides the agent through iterative development:
     write code -> execute -> check results -> fix errors -> repeat
     """
-    reasoning_node = Node("route")
+    reasoning_node = Node("generate")
     network = create_network(
         layers=[reasoning_node],
         provider="openai",

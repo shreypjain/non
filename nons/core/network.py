@@ -483,13 +483,93 @@ class NoN:
 
 def create_network(*layers: Layer, **kwargs) -> NoN:
     """
-    Convenience function to create a NoN from layers.
+    Convenience function to create a NoN from layers or nodes.
+
+    Supports two modes:
+    1. Pass pre-configured layers/nodes directly
+    2. Pass model configuration to auto-configure nodes
 
     Args:
-        *layers: Layers to include in the network
-        **kwargs: Additional network configuration
+        *layers: Layers to include in the network (or use layers= keyword arg)
+        **kwargs: Additional network configuration. Special keys:
+            - layers: List of layers or nodes (alternative to positional args)
+            - provider: Model provider (e.g., "openai", "anthropic")
+            - model: Model name (e.g., "gpt-4o-mini")
+            - system_prompt: System prompt for the nodes
+            - Other keys are passed to NoN constructor
 
     Returns:
         New NoN instance
     """
-    return NoN(layers=list(layers), **kwargs)
+    from .layer import Layer
+    from .types import ModelConfig, ModelProvider
+
+    # Handle case where layers is passed as a keyword argument
+    if 'layers' in kwargs:
+        layers_list = kwargs.pop('layers')
+    else:
+        layers_list = list(layers)
+
+    # Extract agent-specific parameters if provided
+    provider_str = kwargs.pop('provider', None)
+    model_name = kwargs.pop('model', None)
+    system_prompt = kwargs.pop('system_prompt', None)
+
+    # If provider/model are specified, configure the nodes
+    if provider_str or model_name or system_prompt:
+        # Convert provider string to enum
+        if provider_str:
+            provider = ModelProvider(provider_str.lower()) if isinstance(provider_str, str) else provider_str
+        else:
+            provider = None
+
+        # Create ModelConfig if provider or model specified
+        if provider or model_name:
+            from .config import get_default_model_config
+            default_config = get_default_model_config(provider)
+            model_config = ModelConfig(
+                provider=provider or default_config.provider,
+                model_name=model_name or default_config.model_name,
+                temperature=default_config.temperature,
+                max_tokens=default_config.max_tokens,
+            )
+        else:
+            model_config = None
+
+        # Update nodes with configuration
+        configured_layers = []
+        for item in layers_list:
+            if isinstance(item, Layer):
+                # Already a layer - update its nodes if needed
+                if model_config or system_prompt:
+                    configured_nodes = []
+                    for node in item.nodes:
+                        if model_config and node.model_config is None:
+                            node.model_config = model_config
+                        if system_prompt and not node.additional_prompt_context:
+                            node.additional_prompt_context = system_prompt
+                        configured_nodes.append(node)
+                    configured_layers.append(Layer(configured_nodes, item.layer_config))
+                else:
+                    configured_layers.append(item)
+            else:
+                # Assume it's a node - wrap in layer and configure
+                node = item
+                if model_config:
+                    node.model_config = model_config
+                if system_prompt:
+                    node.additional_prompt_context = system_prompt
+                configured_layers.append(Layer([node]))
+
+        layers_list = configured_layers
+
+    # Ensure all items are layers
+    final_layers = []
+    for item in layers_list:
+        if isinstance(item, Layer):
+            final_layers.append(item)
+        else:
+            # Assume it's a node - wrap in layer
+            final_layers.append(Layer([item]))
+
+    return NoN(layers=final_layers, **kwargs)

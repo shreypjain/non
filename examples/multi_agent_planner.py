@@ -35,6 +35,7 @@ from nons.core.network import NoN, create_network
 from nons.core.node import Node
 from nons.core.agents.agent import Agent
 from nons.core.agents.registry import ToolRegistry
+import nons.operators.base  # This registers all the base operators
 
 
 # Shared Parameter Models
@@ -303,7 +304,7 @@ def create_planner_agent() -> Agent:
     Pattern: Planner uses a more sophisticated system prompt to coordinate
     multiple sub-agents and break down complex tasks.
     """
-    reasoning_node = Node("route")
+    reasoning_node = Node("generate")
     network = create_network(
         layers=[reasoning_node],
         provider="openai",
@@ -318,7 +319,7 @@ Your job is to:
    - research: For information gathering
 3. Use complete_task when all steps are done
 
-Return decisions in this format:
+Return decisions in this JSON format:
 {
     "selected_path": "tool_name",
     "routing_confidence": 0.95,
@@ -332,7 +333,7 @@ Return decisions in this format:
 
 def create_code_writer_agent() -> Agent:
     """Create specialized code writer agent"""
-    reasoning_node = Node("route")
+    reasoning_node = Node("generate")
     network = create_network(
         layers=[reasoning_node],
         provider="openai",
@@ -342,7 +343,7 @@ def create_code_writer_agent() -> Agent:
 Use write_code to generate code based on requirements.
 Use finish_code_task when complete.
 
-Return decisions in this format:
+Return decisions in this JSON format:
 {
     "selected_path": "tool_name",
     "routing_confidence": 0.95,
@@ -356,7 +357,7 @@ Return decisions in this format:
 
 def create_file_manager_agent() -> Agent:
     """Create specialized file manager agent"""
-    reasoning_node = Node("route")
+    reasoning_node = Node("generate")
     network = create_network(
         layers=[reasoning_node],
         provider="openai",
@@ -366,7 +367,7 @@ def create_file_manager_agent() -> Agent:
 Use file_operation for read, write, or delete operations.
 Use finish_file_task when complete.
 
-Return decisions in this format:
+Return decisions in this JSON format:
 {
     "selected_path": "tool_name",
     "routing_confidence": 0.95,
@@ -380,7 +381,7 @@ Return decisions in this format:
 
 def create_research_agent() -> Agent:
     """Create specialized research agent"""
-    reasoning_node = Node("route")
+    reasoning_node = Node("generate")
     network = create_network(
         layers=[reasoning_node],
         provider="openai",
@@ -390,7 +391,7 @@ def create_research_agent() -> Agent:
 Use search to find information on topics.
 Use finish_research_task when complete.
 
-Return decisions in this format:
+Return decisions in this JSON format:
 {
     "selected_path": "tool_name",
     "routing_confidence": 0.95,
