@@ -80,3 +80,12 @@ docs/_build/
 # Temporary files
 *.tmp
 *.temp
+
+# Testing and reports (feature branch only)
+*LATENCY*.md
+*STATUS*.md
+*FINDINGS*.md
+test_*latency*.py
+test_*scheduler*.py
+test_*agent*.py
+test_*multi*.py
