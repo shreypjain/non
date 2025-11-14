@@ -47,15 +47,59 @@ class Agent:
         Pure LLM forward pass. Returns routing decision.
         No side effects - just network execution.
         """
+        import json
+        import re
+
         for attempt in range(self.max_llm_retry):
             try:
                 result = await self.network.forward(state)
-                decision = RouteDecision.model_validate(result.final_output)
+                # RouteDecision is a TypedDict, parse from result
+                output = result.final_output
+
+                if isinstance(output, dict):
+                    decision = output
+                elif isinstance(output, str):
+                    # Try to find JSON in the string (handle wrapped JSON)
+                    # First try direct parsing
+                    try:
+                        decision = json.loads(output)
+                    except json.JSONDecodeError:
+                        # Try to extract JSON object from text (handles nested braces better)
+                        json_match = re.search(r'\{[^{}]*"selected_path"[^{}]*(?:\{[^{}]*\}[^{}]*)?\}', output, re.DOTALL)
+                        if json_match:
+                            try:
+                                decision = json.loads(json_match.group())
+                            except json.JSONDecodeError:
+                                # More aggressive extraction - find balanced braces
+                                start = output.find('{')
+                                if start != -1:
+                                    brace_count = 0
+                                    for i in range(start, len(output)):
+                                        if output[i] == '{':
+                                            brace_count += 1
+                                        elif output[i] == '}':
+                                            brace_count -= 1
+                                            if brace_count == 0:
+                                                decision = json.loads(output[start:i+1])
+                                                break
+                                else:
+                                    raise ValueError(f"Could not find valid JSON in output: {output[:200]}")
+                        else:
+                            raise ValueError(f"Could not find valid JSON in output: {output[:200]}")
+                else:
+                    raise ValueError(f"Unexpected output type: {type(output)}")
+
+                # Validate required fields
+                required_fields = ["selected_path", "routing_confidence", "reasoning"]
+                missing = [f for f in required_fields if f not in decision]
+                if missing:
+                    raise ValidationError(f"Missing required fields: {missing}")
+
                 return decision
-            except ValidationError as e:
+            except (ValidationError, ValueError, KeyError, json.JSONDecodeError) as e:
                 if attempt == self.max_llm_retry - 1:
                     raise ValueError(
-                        f"LLM failed to return valid routing decision after {self.max_llm_retry} attempts: {e}"
+                        f"LLM failed to return valid routing decision after {self.max_llm_retry} attempts: {e}\nLast output: {output[:500] if 'output' in locals() else 'N/A'}"
                     )
                 continue
 
