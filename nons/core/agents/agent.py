@@ -111,16 +111,16 @@ class Agent:
         Returns standardized tool result with success/error status.
         """
         tool_result = await self.registry.execute(
-            decision.selected_path,
-            decision.params if hasattr(decision, "params") else {},
+            decision["selected_path"],  # Dict access, not attribute
+            decision.get("params", {}),  # Dict access with default
             state=state,
             **context,
         )
 
         return {
-            "tool": decision.selected_path,
-            "reasoning": decision.reasoning,
-            "confidence": decision.routing_confidence,
+            "tool": decision["selected_path"],
+            "reasoning": decision.get("reasoning", ""),
+            "confidence": decision.get("routing_confidence", 0.0),
             "result": tool_result,
             "success": tool_result.get("success", False),
             "is_stop": tool_result.get("is_stop_tool", False),
