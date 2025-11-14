@@ -1,0 +1,129 @@
+# NoN Docker Compose Configuration
+# For local development and production deployment
+
+version: '3.8'
+
+services:
+  # NoN application service
+  non-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: non-app:latest
+    container_name: non-app
+    restart: unless-stopped
+
+    # Environment variables (override with .env file)
+    environment:
+      # API Keys (required)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+
+      # Environment
+      - NON_ENVIRONMENT=production
+      - NON_DEBUG=false
+      - NON_LOG_LEVEL=INFO
+
+      # Scheduler
+      - NON_MAX_CONCURRENT_REQUESTS=10
+      - NON_REQUESTS_PER_MINUTE=100
+
+      # Observability
+      - NON_ENABLE_TRACING=true
+      - NON_ENABLE_METRICS=true
+
+      # Error handling
+      - NON_ERROR_POLICY=retry_with_backoff
+      - NON_MAX_RETRIES=3
+
+    # Mount your application code
+    volumes:
+      - ./your_app:/app/your_app:ro  # Mount your application
+      - ./logs:/app/logs              # Log persistence
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import nons; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Network
+    networks:
+      - non-network
+
+  # Optional: Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: non-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - non-network
+    profiles:
+      - monitoring
+
+  # Optional: Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: non-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana-dashboards:/etc/grafana/provisioning/dashboards:ro
+    networks:
+      - non-network
+    profiles:
+      - monitoring
+
+  # Optional: PostgreSQL for observability data storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: non-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=non_observability
+      - POSTGRES_USER=nonuser
+      - POSTGRES_PASSWORD=nonpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./monitoring/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - non-network
+    profiles:
+      - monitoring
+
+networks:
+  non-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  postgres-data:
