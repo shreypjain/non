@@ -53,6 +53,21 @@ from .network_evolution import (
     NetworkGeneticAlgorithm,
 )
 
+# SuperGPQA integration
+from .supergpqa_loader import (
+    SuperGPQAExample,
+    SuperGPQADataset,
+    extract_answer_letter,
+    evaluate_supergpqa_answer,
+)
+
+from .supergpqa_fitness import (
+    format_supergpqa_prompt,
+    evaluate_network_on_supergpqa,
+    batch_evaluate_supergpqa_fitness,
+    create_supergpqa_fitness_function,
+)
+
 # Legacy bandit components (for backward compatibility)
 from .encoding import (
     encode_strategy,
@@ -123,6 +138,15 @@ __all__ = [
     "NetworkGAConfig",
     "NetworkGAResult",
     "NetworkGeneticAlgorithm",
+    # SuperGPQA
+    "SuperGPQAExample",
+    "SuperGPQADataset",
+    "extract_answer_letter",
+    "evaluate_supergpqa_answer",
+    "format_supergpqa_prompt",
+    "evaluate_network_on_supergpqa",
+    "batch_evaluate_supergpqa_fitness",
+    "create_supergpqa_fitness_function",
     # Legacy bandit components
     "encode_strategy",
     "decode_chromosome",
