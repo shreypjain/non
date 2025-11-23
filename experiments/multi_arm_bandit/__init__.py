@@ -1,16 +1,59 @@
 """
-Multi-arm bandit genetic algorithm experiment.
+Network Architecture Evolution with Genetic Algorithms.
 
-This package provides a complete implementation of genetic algorithms
-for solving multi-arm bandit problems, including:
+This package provides genetic algorithm-based optimization for NoN network
+architectures, evolving networks to maximize reasoning task performance.
 
-- Binary encoding of strategies
-- Fitness evaluation functions
-- Genetic operators (selection, crossover, mutation)
-- Multi-arm bandit environments
-- Standard benchmark problems
+Main Components:
+- Network encoding and genetic operators
+- Reasoning task benchmarks
+- Fitness evaluation based on task accuracy
+- Evolutionary algorithm for architecture search
 """
 
+# Network encoding
+from .network_encoding import (
+    NetworkGene,
+    NetworkChromosome,
+    random_network_chromosome,
+    mutate_network,
+    crossover_networks,
+    describe_network,
+    AVAILABLE_OPERATORS,
+    MODEL_CONFIGS,
+)
+
+# Reasoning tasks
+from .reasoning_tasks import (
+    ReasoningExample,
+    ReasoningTask,
+    ARITHMETIC_TASK,
+    LOGICAL_TASK,
+    PATTERN_TASK,
+    COMMONSENSE_TASK,
+    MULTISTEP_TASK,
+    GPQA_TASK,
+    ALL_TASKS,
+    get_task_by_name,
+    create_task_suite,
+)
+
+# Fitness evaluation
+from .network_fitness import (
+    evaluate_network_on_task,
+    evaluate_network_fitness,
+    build_network_from_chromosome,
+    batch_evaluate_fitness,
+)
+
+# Genetic algorithm
+from .network_evolution import (
+    NetworkGAConfig,
+    NetworkGAResult,
+    NetworkGeneticAlgorithm,
+)
+
+# Legacy bandit components (for backward compatibility)
 from .encoding import (
     encode_strategy,
     decode_chromosome,
@@ -50,29 +93,55 @@ from .benchmarks import (
 )
 
 __all__ = [
-    # Encoding
+    # Network evolution (primary interface)
+    "NetworkGene",
+    "NetworkChromosome",
+    "random_network_chromosome",
+    "mutate_network",
+    "crossover_networks",
+    "describe_network",
+    "AVAILABLE_OPERATORS",
+    "MODEL_CONFIGS",
+    # Reasoning tasks
+    "ReasoningExample",
+    "ReasoningTask",
+    "ARITHMETIC_TASK",
+    "LOGICAL_TASK",
+    "PATTERN_TASK",
+    "COMMONSENSE_TASK",
+    "MULTISTEP_TASK",
+    "GPQA_TASK",
+    "ALL_TASKS",
+    "get_task_by_name",
+    "create_task_suite",
+    # Fitness
+    "evaluate_network_on_task",
+    "evaluate_network_fitness",
+    "build_network_from_chromosome",
+    "batch_evaluate_fitness",
+    # GA
+    "NetworkGAConfig",
+    "NetworkGAResult",
+    "NetworkGeneticAlgorithm",
+    # Legacy bandit components
     "encode_strategy",
     "decode_chromosome",
     "random_chromosome",
     "bits_per_arm",
     "chromosome_length",
-    # Bandit environments
     "MultiArmBandit",
     "BernoulliBandit",
     "GaussianBandit",
     "NonStationaryBandit",
     "ContextualBandit",
-    # Fitness
     "evaluate_strategy_fitness",
     "evaluate_regret_fitness",
     "evaluate_diversity_fitness",
     "create_fitness_function",
-    # Genetic algorithm
     "GeneticAlgorithm",
     "GAConfig",
     "GAResult",
     "run_multiple_trials",
-    # Benchmarks
     "BenchmarkProblem",
     "get_benchmark_by_name",
     "list_benchmarks",

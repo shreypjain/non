@@ -1,184 +1,268 @@
-# Multi-Arm Bandit Genetic Algorithm Experiment
+# Network Architecture Evolution with Genetic Algorithms
 
-This experiment explores using genetic algorithms to solve multi-arm bandit problems, demonstrating how evolutionary computation can optimize decision-making strategies in environments with uncertain rewards.
+This experiment uses genetic algorithms to evolve optimal NoN network architectures for reasoning tasks. Rather than manually designing network structures, we let evolution discover effective operator compositions and model configurations.
 
 ## Problem Overview
 
-The multi-arm bandit problem is a classic reinforcement learning challenge where an agent must choose between multiple options (arms), each providing uncertain rewards. The goal is to maximize cumulative reward over time while balancing exploration (trying different arms) and exploitation (choosing known good arms).
+Designing compound AI systems requires selecting:
+- Which operators to use (transform, generate, classify, etc.)
+- How to arrange them in layers (sequential vs parallel)
+- Which models to use for each operation
+- How many layers the network should have
 
-## Genetic Algorithm Approach
+This is a combinatorial optimization problem perfect for genetic algorithms.
 
-This implementation uses genetic algorithms to evolve effective arm-pulling strategies:
+## Approach
 
-### Binary Encoding
+### Network Encoding
 
-Each strategy is encoded as a binary chromosome representing a sequence of arm choices over a fixed horizon. For example, with 4 arms and 10 time steps:
+Each network architecture is encoded as a chromosome containing genes:
 
-- Chromosome: `001011100110...` (20 bits for 10 pulls with 4 arms, 2 bits per choice)
-- Decoding: `[0, 2, 3, 3, 0, 1, 2, ...]` (arm indices)
+```python
+NetworkGene:
+  - operators: ["transform", "generate"]  # Operations in this layer
+  - provider: ModelProvider.ANTHROPIC     # Model provider
+  - model_name: "claude-sonnet-4.5"       # Specific model
+  - parallel: True                        # Parallel execution
+```
+
+A complete network is a sequence of genes representing layers.
 
 ### Fitness Function
 
-The fitness of a strategy is determined by simulating its performance against the bandit environment:
+Networks are evaluated on reasoning task accuracy:
 
+```python
+fitness = average_accuracy_across_tasks([
+    ARITHMETIC_TASK,    # Basic math problems
+    LOGICAL_TASK,       # Logical deduction
+    PATTERN_TASK,       # Sequence completion
+    COMMONSENSE_TASK,   # Common sense reasoning
+    MULTISTEP_TASK,     # Multi-step problems
+    GPQA_TASK,          # Graduate-level science questions
+])
 ```
-fitness(strategy) = average_cumulative_reward_over_multiple_trials
-```
-
-Multiple trials are averaged to account for the stochastic nature of rewards.
 
 ### Genetic Operators
 
-1. Selection: Tournament selection to choose parents based on fitness
-2. Crossover: Single-point or uniform crossover to combine parent strategies
-3. Mutation: Bit-flip mutation to introduce exploration
+**Mutation** can:
+- Change an operator in a layer
+- Swap model/provider
+- Add or remove layers
+- Toggle parallel execution
 
-### Evolution Process
+**Crossover**:
+- Single-point crossover on gene sequences
+- Combines parent network structures
 
-1. Initialize random population of strategies
-2. Evaluate fitness of each strategy
-3. Select parents based on fitness
-4. Create offspring through crossover and mutation
-5. Replace population with offspring (generational or elitist)
-6. Repeat until convergence or maximum generations reached
+**Selection**:
+- Tournament selection based on task accuracy
 
-## Implementation Components
+## Implementation
 
 ### Core Modules
 
-- `genetic_algorithm.py`: Core GA implementation with selection, crossover, mutation
-- `bandit_environment.py`: Multi-arm bandit simulator with various reward distributions
-- `encoding.py`: Binary encoding and decoding utilities for strategies
-- `fitness.py`: Fitness evaluation functions
-- `benchmarks.py`: Standard benchmark problems
-- `run_experiment.py`: Main experiment runner with analysis
+**network_encoding.py**: Network chromosome representation
+- `NetworkGene`: Single layer configuration
+- `NetworkChromosome`: Complete network encoding
+- `random_network_chromosome()`: Generate random architectures
+- `mutate_network()`: Apply mutations
+- `crossover_networks()`: Combine parent networks
 
-### Binary Encoding Design
+**reasoning_tasks.py**: Benchmark reasoning problems
+- `ARITHMETIC_TASK`: Basic arithmetic word problems
+- `LOGICAL_TASK`: Logical deduction
+- `PATTERN_TASK`: Number sequences
+- `COMMONSENSE_TASK`: Common sense reasoning
+- `MULTISTEP_TASK`: Multi-step reasoning
+- `GPQA_TASK`: Graduate-level science questions
 
-The encoding scheme maps bit strings to arm-pulling sequences:
+Each task has examples with expected outputs and evaluation functions.
 
-- For N arms, we need ceil(log2(N)) bits per decision
-- A strategy for T time steps requires T * ceil(log2(N)) bits
-- Invalid encodings (bits representing arm indices >= N) are handled by modulo mapping
+**network_fitness.py**: Fitness evaluation
+- `evaluate_network_on_task()`: Test network on one task
+- `evaluate_network_fitness()`: Aggregate across tasks
+- `build_network_from_chromosome()`: Construct NoN from chromosome
 
-Example for 3 arms (requires 2 bits per choice):
-```
-Bits: 00 01 10 11 00 10
-Arms:  0  1  2  3  0  2
-         (3 mod 3 = 0, wraps to valid arm)
-```
+**network_evolution.py**: Genetic algorithm
+- `NetworkGeneticAlgorithm`: Main evolution loop
+- Tournament selection
+- Elitism (preserve best networks)
+- Population diversity tracking
 
-### Fitness Function Design
+## Usage
 
-The fitness function evaluates strategy quality:
+### Basic Example
 
 ```python
-def fitness(chromosome, bandit, num_trials=100, horizon=50):
-    # Decode binary chromosome to arm sequence
-    strategy = decode_chromosome(chromosome)
+import asyncio
+from multi_arm_bandit.network_evolution import (
+    NetworkGeneticAlgorithm,
+    NetworkGAConfig,
+)
+from multi_arm_bandit.reasoning_tasks import (
+    ARITHMETIC_TASK,
+    LOGICAL_TASK,
+    GPQA_TASK,
+)
 
-    # Run multiple trials
-    total_reward = 0
-    for trial in range(num_trials):
-        bandit.reset()
-        for t in range(horizon):
-            arm = strategy[t % len(strategy)]
-            reward = bandit.pull(arm)
-            total_reward += reward
+async def evolve_network():
+    # Configure evolution
+    config = NetworkGAConfig(
+        population_size=20,
+        num_generations=10,
+        mutation_rate=0.2,
+        min_layers=2,
+        max_layers=5,
+    )
 
-    return total_reward / num_trials
+    # Run evolution
+    ga = NetworkGeneticAlgorithm(
+        tasks=[ARITHMETIC_TASK, LOGICAL_TASK, GPQA_TASK],
+        config=config,
+    )
+
+    result = await ga.run()
+
+    print(f"Best fitness: {result.best_fitness:.2%}")
+    print(result.best_chromosome.to_operator_spec())
+
+asyncio.run(evolve_network())
 ```
 
-## Benchmark Problems
+### Run Demo
 
-### 1. Bernoulli Bandit
-
-Arms provide binary rewards (0 or 1) with fixed probabilities:
-- 4 arms with success probabilities: [0.1, 0.5, 0.3, 0.7]
-- Optimal strategy: always pull arm 3 (p=0.7)
-
-### 2. Gaussian Bandit
-
-Arms provide rewards from normal distributions:
-- 4 arms with (mean, std): [(0.0, 1.0), (0.5, 1.0), (1.0, 1.0), (1.5, 1.0)]
-- Optimal strategy: always pull arm 3 (mean=1.5)
-
-### 3. Non-Stationary Bandit
-
-Arm reward distributions change over time, testing adaptability:
-- Reward probabilities shift every 100 pulls
-- Tests whether GA can find robust strategies
-
-## Running the Experiment
-
-Basic usage:
 ```bash
 cd experiments/multi_arm_bandit
-uv run python run_experiment.py
+uv run python example_network_evolution.py
 ```
 
-With custom parameters:
-```bash
-uv run python run_experiment.py --population-size 100 --generations 50 --mutation-rate 0.01
+### Available Models (November 2025)
+
+The evolution can select from:
+
+**Anthropic:**
+- claude-haiku-4.5 (fast, efficient)
+- claude-sonnet-4.5 (balanced)
+- claude-opus-4.1 (most capable)
+
+**OpenAI:**
+- gpt-4o (multimodal)
+- gpt-5.1 (latest foundation model)
+- gpt-5.1-codex-max (coding specialist)
+
+**Google:**
+- gemini-2.5-flash (fast)
+- gemini-2.5-pro (advanced thinking)
+- gemini-3-pro (latest multimodal)
+- gemini-3-deep-think (complex problems)
+
+## Network Architecture Search Space
+
+The GA explores:
+
+**Operators (9 types):**
+- transform, generate, classify, extract
+- condense, expand, compare, validate, synthesize
+
+**Layer structures:**
+- Sequential: Single operator per layer
+- Parallel: Multiple operators executing concurrently
+
+**Depth:**
+- 2-5 layers (configurable)
+
+**Model selection:**
+- 3 providers × 3-4 models each
+
+**Total search space:** ~10^12 possible architectures
+
+## Reasoning Tasks
+
+### Arithmetic (5 examples)
+```
+Input: "John has 5 apples, Mary gives him 3 more..."
+Expected: "8"
+Evaluation: Numeric extraction
 ```
 
-## Expected Results
+### Logical (5 examples)
+```
+Input: "All cats are animals. Fluffy is a cat..."
+Expected: "Yes"
+Evaluation: Contains match
+```
 
-The genetic algorithm should:
+### Pattern (5 examples)
+```
+Input: "What comes next: 2, 4, 6, 8, ?"
+Expected: "10"
+Evaluation: Numeric match
+```
 
-1. Converge to near-optimal strategies for stationary bandits
-2. Show clear fitness improvement over generations
-3. Discover exploitation-focused strategies for clear optimal arms
-4. Maintain some exploration in uncertain environments
+### Commonsense (5 examples)
+```
+Input: "If you drop a glass on hard floor..."
+Expected: "break"
+Evaluation: Contains match
+```
 
-Performance metrics tracked:
-- Best fitness per generation
-- Average fitness per generation
-- Diversity of population
-- Convergence rate
+### Multistep (5 examples)
+```
+Input: "Pizza has 8 slices, John eats 2, Mary eats 3..."
+Expected: "3"
+Evaluation: Numeric extraction
+```
 
-## Analysis and Visualization
+### GPQA (Graduate-Level Questions)
+```
+Input: "In thermodynamics, which law states that energy cannot be created or destroyed?"
+Expected: "first law"
+Evaluation: Contains match
+```
 
-The experiment generates:
+## Future Directions
 
-- Fitness evolution plots showing improvement over generations
-- Strategy diversity metrics over time
-- Comparison with baseline strategies (random, greedy, epsilon-greedy)
-- Final best strategy visualization
+### Immediate Extensions
+1. Layer-specific model configuration
+2. More sophisticated crossover (layer-aware)
+3. Adaptive mutation rates based on fitness progress
+4. Multi-objective optimization (accuracy + cost + latency)
 
-## Theoretical Background
+### Advanced Features
+1. Hierarchical encoding for deeper networks
+2. Context-specific operator selection
+3. Co-evolution of prompts and architectures
+4. Transfer learning across task domains
 
-This experiment bridges evolutionary computation and reinforcement learning:
+### Real-World Benchmarks
+1. Full GPQA dataset integration
+2. GSM8K math reasoning
+3. ARC challenge
+4. Domain-specific task suites
 
-- Genetic algorithms provide a black-box optimization approach
-- No gradient information or value function required
-- Can handle non-differentiable reward functions
-- Population-based search explores solution space broadly
+## Key Insights
 
-Limitations compared to classic bandit algorithms:
-- Requires fixed horizon (cannot adapt policy online)
-- Computationally expensive (many fitness evaluations)
-- Does not leverage problem structure (reward distributions)
+**Why Genetic Algorithms for Network Search?**
+- No gradient information needed
+- Explores discrete architecture space naturally
+- Handles non-differentiable objectives (task accuracy)
+- Population diversity prevents local optima
+- Interpretable solutions (explicit network structures)
 
-However, GA advantages:
-- Can optimize complex, non-standard objectives
-- Naturally handles constraints on strategy structure
-- Provides interpretable final strategies
-- Robust to local optima through population diversity
+**What We're Optimizing:**
+Unlike traditional neural architecture search that optimizes layer connections and neuron counts, we're optimizing:
+- Semantic operator composition
+- Model-operator matching
+- Layer parallelization strategy
+- Network depth for reasoning tasks
 
-## Future Extensions
-
-Potential improvements and variations:
-
-1. Co-evolution with dynamic bandit environments
-2. Multi-objective optimization (reward vs. risk)
-3. Hierarchical encoding for contextual bandits
-4. Hybrid approaches combining GA with traditional bandit algorithms
-5. Transfer learning across different bandit configurations
+This is a higher-level architectural search tailored for compound AI systems.
 
 ## References
 
-Key concepts from:
-- Reinforcement Learning: Multi-arm bandit problems
-- Evolutionary Computation: Genetic algorithms, encoding schemes
-- Optimization Theory: Exploration-exploitation tradeoffs
+- Genetic Algorithms: Holland (1975), Goldberg (1989)
+- Neural Architecture Search: Zoph & Le (2017)
+- Compound AI Systems: Berkeley AI Research
+- GPQA: Rein et al. (2023) - Graduate-Level Google-Proof Q&A Benchmark
+- Reasoning Benchmarks: GSM8K, ARC, DROP
