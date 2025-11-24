@@ -10,6 +10,11 @@ from typing import List, Dict, Any, Optional
 from nons.core.network import NoN
 from nons.core.node import Node
 from nons.core.types import ModelConfig
+
+# Import operators to register them
+import nons.operators.base  # noqa: F401
+import nons.operators.deterministic  # noqa: F401
+
 from .network_encoding import NetworkChromosome, describe_network
 from .supergpqa_loader import (
     SuperGPQADataset,

@@ -9,8 +9,10 @@ import asyncio
 import sys
 import os
 
-# Add experiments directory to path
+# Add both experiments and project root to path
 experiments_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+project_root = os.path.dirname(experiments_dir)
+sys.path.insert(0, project_root)
 sys.path.insert(0, experiments_dir)
 
 from multi_arm_bandit.network_evolution import (
@@ -52,6 +54,7 @@ class SuperGPQANetworkGA(NetworkGeneticAlgorithm):
         # Don't call super().__init__ yet since we need different setup
         self.dataset = dataset
         self.num_questions = num_questions
+        self.tasks = []  # Compatibility with parent class (we use dataset instead)
         self.config = config if config is not None else NetworkGAConfig()
         self.seed = seed
 
@@ -63,7 +66,7 @@ class SuperGPQANetworkGA(NetworkGeneticAlgorithm):
             np.random.seed(seed)
 
         # Initialize population
-        from .network_encoding import random_network_chromosome
+        from multi_arm_bandit.network_encoding import random_network_chromosome
 
         self.population = [
             random_network_chromosome(

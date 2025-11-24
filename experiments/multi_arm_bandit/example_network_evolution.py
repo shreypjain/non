@@ -9,8 +9,10 @@ import asyncio
 import sys
 import os
 
-# Add experiments directory to path
+# Add both experiments and project root to path
 experiments_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+project_root = os.path.dirname(experiments_dir)
+sys.path.insert(0, project_root)
 sys.path.insert(0, experiments_dir)
 
 from multi_arm_bandit.network_evolution import (
