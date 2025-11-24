@@ -68,45 +68,6 @@ from .supergpqa_fitness import (
     create_supergpqa_fitness_function,
 )
 
-# Legacy bandit components (for backward compatibility)
-from .encoding import (
-    encode_strategy,
-    decode_chromosome,
-    random_chromosome,
-    bits_per_arm,
-    chromosome_length,
-)
-
-from .bandit_environment import (
-    MultiArmBandit,
-    BernoulliBandit,
-    GaussianBandit,
-    NonStationaryBandit,
-    ContextualBandit,
-)
-
-from .fitness import (
-    evaluate_strategy_fitness,
-    evaluate_regret_fitness,
-    evaluate_diversity_fitness,
-    create_fitness_function,
-)
-
-from .genetic_algorithm import (
-    GeneticAlgorithm,
-    GAConfig,
-    GAResult,
-    run_multiple_trials,
-)
-
-from .benchmarks import (
-    BenchmarkProblem,
-    get_benchmark_by_name,
-    list_benchmarks,
-    get_benchmark_suite,
-    ALL_BENCHMARKS,
-)
-
 __all__ = [
     # Network evolution (primary interface)
     "NetworkGene",
@@ -147,28 +108,4 @@ __all__ = [
     "evaluate_network_on_supergpqa",
     "batch_evaluate_supergpqa_fitness",
     "create_supergpqa_fitness_function",
-    # Legacy bandit components
-    "encode_strategy",
-    "decode_chromosome",
-    "random_chromosome",
-    "bits_per_arm",
-    "chromosome_length",
-    "MultiArmBandit",
-    "BernoulliBandit",
-    "GaussianBandit",
-    "NonStationaryBandit",
-    "ContextualBandit",
-    "evaluate_strategy_fitness",
-    "evaluate_regret_fitness",
-    "evaluate_diversity_fitness",
-    "create_fitness_function",
-    "GeneticAlgorithm",
-    "GAConfig",
-    "GAResult",
-    "run_multiple_trials",
-    "BenchmarkProblem",
-    "get_benchmark_by_name",
-    "list_benchmarks",
-    "get_benchmark_suite",
-    "ALL_BENCHMARKS",
 ]
