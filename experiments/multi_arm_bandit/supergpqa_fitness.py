@@ -181,8 +181,9 @@ def build_network_from_chromosome(chromosome: NetworkChromosome) -> NoN:
     """
     Build a NoN network from a chromosome encoding.
 
-    This adds a final answer extraction layer to ensure
-    the network outputs a clean answer letter.
+    For SuperGPQA evaluation, we use a simplified approach where
+    all layers simply use the 'generate' operator which processes
+    the input and produces reasoning output.
 
     Args:
         chromosome: Network chromosome
@@ -190,15 +191,36 @@ def build_network_from_chromosome(chromosome: NetworkChromosome) -> NoN:
     Returns:
         Constructed NoN network
     """
-    # Get operator specification
-    operator_spec = chromosome.to_operator_spec()
+    from nons.core.layer import Layer
 
-    # Add answer extraction layer
-    # This helps ensure clean A/B/C/D output
-    operator_spec.append("extract")
+    # For SuperGPQA, we simplify to using just 'generate' operator
+    # with different model configurations per layer
+    layers = []
 
-    # Build network
-    network = NoN.from_operators(operator_spec)
+    for i, gene in enumerate(chromosome.genes):
+        # Create model config for this layer
+        model_config = ModelConfig(
+            provider=gene.provider,
+            model_name=gene.model_name,
+            temperature=0.3,  # Lower temperature for more deterministic reasoning
+        )
+
+        # Create a node using generate operator with the model config
+        # The generate operator only needs a specification, not extra parameters
+        context = "Analyze the question and select the correct answer. Respond with ONLY the letter (A, B, C, etc.)."
+
+        node = Node(
+            operator_name="generate",
+            model_config=model_config,
+            additional_prompt_context=context,
+        )
+
+        # Create layer with this node
+        layer = Layer([node])
+        layers.append(layer)
+
+    # Build network from layers
+    network = NoN(layers=layers)
 
     return network
 

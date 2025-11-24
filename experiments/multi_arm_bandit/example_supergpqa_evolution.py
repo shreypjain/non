@@ -116,18 +116,18 @@ async def main():
     # Step 2: Configure genetic algorithm
     print("\n2. Configuring genetic algorithm...")
     config = NetworkGAConfig(
-        population_size=10,  # Small for demo
-        num_generations=5,  # Few generations for demo
-        mutation_rate=0.2,
+        population_size=6,  # Smaller population for faster testing
+        num_generations=10,  # Enough to see improvement
+        mutation_rate=0.25,
         crossover_rate=0.7,
-        elitism_count=2,
+        elitism_count=1,
         min_layers=2,
-        max_layers=4,
+        max_layers=3,
     )
 
     print(f"   Population size: {config.population_size}")
     print(f"   Generations: {config.num_generations}")
-    print(f"   Questions per evaluation: 20")
+    print(f"   Questions per evaluation: 10")
 
     # Step 3: Run evolution
     print("\n3. Running evolution...")
@@ -135,7 +135,7 @@ async def main():
 
     ga = SuperGPQANetworkGA(
         dataset=dataset,
-        num_questions=20,
+        num_questions=10,  # Evaluate on 10 questions per generation (faster)
         config=config,
         seed=42,
     )

@@ -13,6 +13,7 @@ dependencies = [
     "tenacity>=8.0.0",
     "typing-extensions>=4.0.0",
     "python-dotenv>=1.1.1",
+    "numpy>=2.0.2",
 ]
 requires-python = ">=3.9"
 
