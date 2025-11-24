@@ -181,32 +181,45 @@ def build_network_from_chromosome(chromosome: NetworkChromosome) -> NoN:
     """
     Build a NoN network from a chromosome encoding.
 
-    For SuperGPQA evaluation, we use a simplified approach where
-    all layers simply use the 'generate' operator which processes
-    the input and produces reasoning output.
+    For SuperGPQA evaluation, we use the 'generate' operator for all layers.
+    This is the correct approach because:
+
+    1. SuperGPQA is a question-answering task that requires reasoning and generation
+    2. The 'generate' operator only needs a generation_specification parameter,
+       which we provide via additional_prompt_context
+    3. Other operators (transform, extract, classify, etc.) require specific
+       parameters (transformation_type, extraction_criteria, etc.) that are
+       task-specific and don't apply to general question answering
+    4. Using generate with different models per layer allows the GA to optimize
+       model selection while keeping the operator interface simple
+
+    The genetic algorithm optimizes:
+    - Which model provider to use per layer (Anthropic/OpenAI/Google)
+    - Which specific model to use (Claude/GPT/Gemini variants)
+    - Network depth (number of layers)
 
     Args:
-        chromosome: Network chromosome
+        chromosome: Network chromosome with model configurations per layer
 
     Returns:
-        Constructed NoN network
+        Constructed NoN network using generate operator with varied models
     """
     from nons.core.layer import Layer
 
-    # For SuperGPQA, we simplify to using just 'generate' operator
-    # with different model configurations per layer
+    # Use generate operator for all layers with different model configurations
+    # This is appropriate for SuperGPQA question answering task
     layers = []
 
     for i, gene in enumerate(chromosome.genes):
-        # Create model config for this layer
+        # Create model config for this layer from chromosome gene
         model_config = ModelConfig(
             provider=gene.provider,
             model_name=gene.model_name,
             temperature=0.3,  # Lower temperature for more deterministic reasoning
         )
 
-        # Create a node using generate operator with the model config
-        # The generate operator only needs a specification, not extra parameters
+        # Create node with generate operator and model config
+        # The additional_prompt_context serves as the generation_specification
         context = "Analyze the question and select the correct answer. Respond with ONLY the letter (A, B, C, etc.)."
 
         node = Node(
