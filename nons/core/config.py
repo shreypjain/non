@@ -12,9 +12,9 @@ from .types import (
     ModelConfig,
     LayerConfig,
     NetworkConfig,
-    RateLimitConfig,
     ModelProvider,
 )
+from .scheduler import RateLimitConfig
 
 
 # Default configurations

@@ -71,6 +71,9 @@ coverage.xml
 .env.test
 .env.production
 
+# PyPI credentials
+.pypirc
+
 # Jupyter
 .ipynb_checkpoints
 

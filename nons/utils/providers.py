@@ -159,14 +159,11 @@ class OpenAIProvider(BaseLLMProvider):
             return completion_text, metrics
 
         except openai.AuthenticationError as e:
-            # Fall back to mock provider on authentication error
-            print(
-                f"Warning: OpenAI authentication failed, falling back to mock provider: {str(e)}"
-            )
-            mock_provider = MockProvider(self.model_config)
-            return await mock_provider.generate_completion(
-                prompt, system_prompt, **kwargs
-            )
+            # Authentication failed - raise clear error instead of silent fallback
+            raise OperatorError(
+                f"OpenAI authentication failed. Please check your API key (OPENAI_API_KEY). "
+                f"Error: {str(e)}"
+            ) from e
         except Exception as e:
             metrics.response_time_ms = (time.time() - start_time) * 1000
             raise OperatorError(f"OpenAI API call failed: {str(e)}") from e
@@ -244,14 +241,11 @@ class AnthropicProvider(BaseLLMProvider):
             return completion_text, metrics
 
         except anthropic.AuthenticationError as e:
-            # Fall back to mock provider on authentication error
-            print(
-                f"Warning: Anthropic authentication failed, falling back to mock provider: {str(e)}"
-            )
-            mock_provider = MockProvider(self.model_config)
-            return await mock_provider.generate_completion(
-                prompt, system_prompt, **kwargs
-            )
+            # Authentication failed - raise clear error instead of silent fallback
+            raise OperatorError(
+                f"Anthropic authentication failed. Please check your API key (ANTHROPIC_API_KEY). "
+                f"Error: {str(e)}"
+            ) from e
         except Exception as e:
             metrics.response_time_ms = (time.time() - start_time) * 1000
             raise OperatorError(f"Anthropic API call failed: {str(e)}") from e

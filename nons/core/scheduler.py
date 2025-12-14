@@ -243,6 +243,10 @@ class RequestScheduler:
         Returns:
             The result of the operation
         """
+        # Ensure scheduler is running
+        if not self.is_running:
+            await self.start()
+
         request_item = RequestItem(
             provider=provider,
             model_config=model_config,
@@ -548,10 +552,24 @@ _request_scheduler: Optional[RequestScheduler] = None
 
 
 def get_scheduler() -> RequestScheduler:
-    """Get the global request scheduler."""
+    """Get the global request scheduler, auto-starting if needed."""
     global _request_scheduler
     if _request_scheduler is None:
         _request_scheduler = RequestScheduler()
+        # Auto-start the scheduler if there's a running event loop
+        try:
+            loop = asyncio.get_running_loop()
+            asyncio.create_task(_request_scheduler.start())
+        except RuntimeError:
+            # No event loop running - will start when first request is scheduled
+            pass
+    elif not _request_scheduler.is_running:
+        # Restart if stopped and there's an event loop
+        try:
+            loop = asyncio.get_running_loop()
+            asyncio.create_task(_request_scheduler.start())
+        except RuntimeError:
+            pass
     return _request_scheduler
 
 

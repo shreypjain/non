@@ -156,8 +156,9 @@ class LogManager:
     capabilities for database storage.
     """
 
-    def __init__(self, enable_logging: bool = True):
+    def __init__(self, enable_logging: bool = True, max_log_entries: int = 10000):
         self.enable_logging = enable_logging
+        self.max_log_entries = max_log_entries
         self.log_entries: List[LogEntry] = []
         self._lock = threading.RLock()
 
@@ -231,6 +232,11 @@ class LogManager:
 
         with self._lock:
             self.log_entries.append(log_entry)
+
+            # Enforce max log entries limit to prevent memory leaks
+            if len(self.log_entries) > self.max_log_entries:
+                # Remove oldest entries
+                self.log_entries = self.log_entries[-self.max_log_entries:]
 
     def log_structured(
         self,

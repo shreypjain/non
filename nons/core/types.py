@@ -74,12 +74,13 @@ class ComparisonAnalysis(TypedDict):
     conclusion: str
 
 
-class RouteDecision(TypedDict):
+class RouteDecision(BaseModel):
     """Routing decision with selected path and confidence."""
 
     selected_path: str
     routing_confidence: float
     reasoning: str
+    params: Optional[Dict[str, Any]] = None
 
 
 # Spec Types (string-based specifications for operator behavior)
@@ -165,15 +166,6 @@ class NetworkConfig(BaseModel):
     global_timeout_seconds: float = 300.0
     enable_tracing: bool = True
     enable_metrics: bool = True
-
-
-# Rate limiting types
-class RateLimitConfig(BaseModel):
-    """Rate limit configuration for model providers."""
-
-    requests_per_minute: int = 60
-    tokens_per_minute: int = 150000
-    concurrent_requests: int = 10
 
 
 # Input/Output schemas for operators

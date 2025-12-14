@@ -191,8 +191,9 @@ class TraceManager:
     parent-child relationships and context propagation.
     """
 
-    def __init__(self, enable_tracing: bool = True):
+    def __init__(self, enable_tracing: bool = True, max_completed_spans: int = 10000):
         self.enable_tracing = enable_tracing
+        self.max_completed_spans = max_completed_spans
         self.active_spans: Dict[str, Span] = {}
         self.completed_spans: List[Span] = []
         self._lock = threading.RLock()
@@ -265,6 +266,11 @@ class TraceManager:
             if span.span_id in self.active_spans:
                 del self.active_spans[span.span_id]
             self.completed_spans.append(span)
+
+            # Enforce max completed spans limit to prevent memory leaks
+            if len(self.completed_spans) > self.max_completed_spans:
+                # Remove oldest spans
+                self.completed_spans = self.completed_spans[-self.max_completed_spans:]
 
     def get_current_context(self) -> Optional[SpanContext]:
         """Get the current span context."""

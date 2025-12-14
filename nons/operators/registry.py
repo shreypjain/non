@@ -6,7 +6,7 @@ the @operator decorator and registry management for compile-time validation.
 """
 
 from typing import Dict, Callable, Any, List, Optional, Type
-from functools import wraps
+from functools import wraps, partial
 import asyncio
 import inspect
 from ..core.types import (
@@ -169,7 +169,9 @@ class RegisteredOperator:
         async def async_wrapper(*args, **kwargs):
             # Run sync function in thread pool to avoid blocking
             loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, func, *args, **kwargs)
+            # Use partial to properly handle kwargs with run_in_executor
+            func_with_args = partial(func, *args, **kwargs)
+            return await loop.run_in_executor(None, func_with_args)
 
         return async_wrapper
 
