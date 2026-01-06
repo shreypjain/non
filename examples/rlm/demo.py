@@ -168,7 +168,7 @@ async def demo_1_find_specific_info():
             print(f"  Used Fixer: Yes")
         print(f"  LLM Calls: {it.execution_result['llm_calls']}")
         print(f"  Confidence: {it.confidence:.2f}")
-        print(f"  Reasoning: {it.verifier_reasoning[:100]}...")
+        print(f"  Reasoning: {it.verifier_reasoning}")
     print()
 
 
@@ -280,6 +280,9 @@ async def main():
     print("3. Plan → Execute → Verify → Refine loop")
     print("4. Automatic error fixing (single retry)")
     print("5. Confidence-based stopping criteria")
+    print()
+    print("Each iteration runs inside the Python REPL so planners can reuse intermediate state and llm_query helpers.")
+    print("Refine steps explicitly tune what the REPL is doing next (chunking, filtering, aggregation) based on verifier reasoning.")
     print()
 
     input("Press Enter to start Demo 1...")

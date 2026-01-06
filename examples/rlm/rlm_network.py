@@ -130,7 +130,7 @@ Your task: Generate Python code that solves the given task using the available c
 Available in execution environment:
 - context: The full document/data (can be very long, 10M+ tokens)
 - llm_query(prompt, context_chunk): Async function to query LLM on chunks
-  - Use this for semantic operations like "summarize", "find", "classify"
+  - Use this for hard semantic operations only after lighter heuristics
   - Pass small context_chunk (not entire context) to stay under token limits
   - Returns string response from LLM
 
@@ -138,29 +138,852 @@ Code requirements:
 1. Store final answer in variable named 'result'
 2. Use print() for intermediate outputs/debugging
 3. Process context in chunks if needed (e.g., split by sections, paragraphs)
-4. Use llm_query() for semantic operations on chunks
-5. Use regular Python for filtering, counting, aggregation
-6. Be efficient - minimize LLM calls (max 50 per execution)
+4. Before calling llm_query(), apply deterministic heuristics to each chunk such as regex matches, character counts, and sampling the first 10-15 words.
+   - For example, run a regex to capture "$ digits" when searching for revenue or using parallel regex search for all types of "AI" questions.
+   - Measure the chunk length, word counts, or presence of keywords to rank chunks.
+   - Use these filtering steps to narrow down candidate chunks to a handful before any LM call.
+5. Use llm_query() only after heuristics indicate a chunk is likely relevant; mention the heuristic evidence when deciding to call the LM.
+6. Use regular Python for filtering, counting, and aggregation.
+7. Be efficient—minimize LM calls (max 50 per execution) and avoid redundant prompts by caching or reusing results within the REPL.
 
-Example pattern:
+Example pattern showing the heuristic-first approach:
 ```python
-# Split context into chunks
-chunks = context.split('\\n\\n')
+chunks = context.split('\\n---\\n')
+candidates = []
+pattern = re.compile(r'Q3 2022.*Revenue:\\s*\\$([0-9,.]+)M')
 
-# Process each chunk
-results = []
 for chunk in chunks:
-    if len(chunk) > 100:  # Filter first
-        response = await llm_query("Is this about X?", chunk)
-        if "yes" in response.lower():
-            results.append(chunk)
+    header = chunk.strip().split('\\n')[0]
+    snippet = ' '.join(chunk.split()[:15])
+    if pattern.search(chunk) or 'Q3 2022' in header:
+        candidates.append((chunk, snippet))
 
-# Store final result
+results = []
+for chunk, snippet in candidates[:5]:
+    print(f\"Heuristic candidates: {snippet}\")
+    response = await llm_query(\"Does this chunk have the data we need?\", chunk)
+    if \"yes\" in response.lower():
+        results.append(chunk)
+
 result = len(results)
-print(f"Found {result} relevant sections")
+print(f\"Processed {len(candidates)} heuristic candidates and found {result} relevant chunks\") 
 ```
 
 Generate ONLY the Python code, no explanations."""
+import sys
+import os
+import re
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+
+from nons.core.node import Node
+from nons.core.types import ModelConfig, ModelProvider
+from .rlm_operator import RLMOperator, RLMExecutionResult
+
+
+class RLMIteration(BaseModel):
+    """Single iteration of RLM loop"""
+
+    iteration: int
+    code: str
+    execution_result: Dict[str, Any]
+    had_error: bool
+    fixed_code: Optional[str] = None
+    confidence: float
+    verifier_reasoning: str
+
+
+class RLMResult(BaseModel):
+    """Final result from RLM network"""
+
+    success: bool
+    final_output: Any
+    iterations: List[RLMIteration]
+    total_llm_calls: int
+    total_iterations: int
+    final_confidence: float
+    stop_reason: str  # "confidence_threshold", "max_iterations", "error"
+
+
+class RLMNetwork:
+    """
+    Network implementing Plan-Execute-Verify-Refine loop for RLM.
+
+    Architecture:
+    - Planner Node: Node('generate') with planning system prompt
+    - Fixer Node: Node('generate') with fixing system prompt
+    - Verifier Node: Node('generate') with verification system prompt
+    - RLM Operator: Executes code with llm_query()
+
+    All nodes use gpt-5.2 for cost efficiency.
+    """
+
+    def __init__(
+        self,
+        max_iterations: int = 5,
+        confidence_threshold: float = 0.8,
+        max_llm_calls_per_execution: int = 50
+    ):
+        """
+        Initialize RLM Network.
+
+        Args:
+            max_iterations: Maximum refinement iterations
+            confidence_threshold: Stop if confidence exceeds this
+            max_llm_calls_per_execution: Max LLM calls in single code execution
+        """
+        self.max_iterations = max_iterations
+        self.confidence_threshold = confidence_threshold
+
+        # Create model config (gpt-4o-mini for all nodes)
+        self.model_config = ModelConfig(
+            provider=ModelProvider.OPENAI,
+            model_name="gpt-4o-mini",
+            temperature=0.7,
+            max_tokens=2000
+        )
+
+        # Initialize RLM operator
+        self.rlm_operator = RLMOperator(
+            model_config=self.model_config,
+            max_llm_calls=max_llm_calls_per_execution
+        )
+
+        # Create nodes
+        self.planner_node = self._create_planner_node()
+        self.fixer_node = self._create_fixer_node()
+        self.verifier_node = self._create_verifier_node()
+
+        # Track iterations
+        self.iterations: List[RLMIteration] = []
+
+    def _create_planner_node(self) -> Node:
+        """
+        Create Planner node with system prompt.
+
+        Planner generates Python code that:
+        - Uses context variable (stored in REPL)
+        - Calls llm_query(prompt, context_chunk) for semantic operations
+        - Stores final result in 'result' variable
+        - Uses print() for intermediate outputs
+        """
+        system_prompt = """You are a Python code planner for processing long documents.
+
+Your task: Generate Python code that solves the given task using the available context.
+
+Available in execution environment:
+- context: The full document/data (can be very long, 10M+ tokens)
+- llm_query(prompt, context_chunk): Async function to query LLM on chunks
+  - Use this for hard semantic operations only after lighter heuristics
+  - Pass small context_chunk (not entire context) to stay under token limits
+  - Returns string response from LLM
+
+Code requirements:
+1. Store final answer in variable named 'result'
+2. Use print() for intermediate outputs/debugging
+3. Process context in chunks if needed (e.g., split by sections, paragraphs)
+4. Before calling llm_query(), apply deterministic heuristics to each chunk such as regex matches, character counts, and sampling the first 10-15 words.
+   - For example, run a regex to capture "$ digits" when searching for revenue or using parallel regex search for all types of "AI" questions.
+   - Measure the chunk length, word counts, or presence of keywords to rank chunks.
+   - Use these filtering steps to narrow down candidate chunks to a handful before any LM call.
+5. Use llm_query() only after heuristics indicate a chunk is likely relevant; mention the heuristic evidence when deciding to call the LM.
+6. Use regular Python for filtering, counting, and aggregation.
+7. Be efficient—minimize LM calls (max 50 per execution) and avoid redundant prompts by caching or reusing results within the REPL.
+
+Example pattern showing the heuristic-first approach:
+```python
+chunks = context.split('\\n---\\n')
+candidates = []
+pattern = re.compile(r'Q3 2022.*Revenue:\\s*\\$([0-9,.]+)M')
+
+for chunk in chunks:
+    header = chunk.strip().split('\\n')[0]
+    snippet = ' '.join(chunk.split()[:15])
+    if pattern.search(chunk) or 'Q3 2022' in header:
+        candidates.append((chunk, snippet))
+
+results = []
+for chunk, snippet in candidates[:5]:
+    print(f\"Heuristic candidates: {snippet}\")
+    response = await llm_query(\"Does this chunk have the data we need?\", chunk)
+    if \"yes\" in response.lower():
+        results.append(chunk)
+
+result = len(results)
+print(f\"Processed {len(candidates)} heuristic candidates and found {result} relevant chunks\") 
+```
+
+Generate ONLY the Python code, no explanations."""
+import sys
+import os
+import re
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+
+from nons.core.node import Node
+from nons.core.types import ModelConfig, ModelProvider
+from .rlm_operator import RLMOperator, RLMExecutionResult
+
+
+class RLMIteration(BaseModel):
+    """Single iteration of RLM loop"""
+
+    iteration: int
+    code: str
+    execution_result: Dict[str, Any]
+    had_error: bool
+    fixed_code: Optional[str] = None
+    confidence: float
+    verifier_reasoning: str
+
+
+class RLMResult(BaseModel):
+    """Final result from RLM network"""
+
+    success: bool
+    final_output: Any
+    iterations: List[RLMIteration]
+    total_llm_calls: int
+    total_iterations: int
+    final_confidence: float
+    stop_reason: str  # "confidence_threshold", "max_iterations", "error"
+
+
+class RLMNetwork:
+    """
+    Network implementing Plan-Execute-Verify-Refine loop for RLM.
+
+    Architecture:
+    - Planner Node: Node('generate') with planning system prompt
+    - Fixer Node: Node('generate') with fixing system prompt
+    - Verifier Node: Node('generate') with verification system prompt
+    - RLM Operator: Executes code with llm_query()
+
+    All nodes use gpt-5.2 for cost efficiency.
+    """
+
+    def __init__(
+        self,
+        max_iterations: int = 5,
+        confidence_threshold: float = 0.8,
+        max_llm_calls_per_execution: int = 50
+    ):
+        """
+        Initialize RLM Network.
+
+        Args:
+            max_iterations: Maximum refinement iterations
+            confidence_threshold: Stop if confidence exceeds this
+            max_llm_calls_per_execution: Max LLM calls in single code execution
+        """
+        self.max_iterations = max_iterations
+        self.confidence_threshold = confidence_threshold
+
+        # Create model config (gpt-4o-mini for all nodes)
+        self.model_config = ModelConfig(
+            provider=ModelProvider.OPENAI,
+            model_name="gpt-4o-mini",
+            temperature=0.7,
+            max_tokens=2000
+        )
+
+        # Initialize RLM operator
+        self.rlm_operator = RLMOperator(
+            model_config=self.model_config,
+            max_llm_calls=max_llm_calls_per_execution
+        )
+
+        # Create nodes
+        self.planner_node = self._create_planner_node()
+        self.fixer_node = self._create_fixer_node()
+        self.verifier_node = self._create_verifier_node()
+
+        # Track iterations
+        self.iterations: List[RLMIteration] = []
+
+    def _create_planner_node(self) -> Node:
+        """
+        Create Planner node with system prompt.
+
+        Planner generates Python code that:
+        - Uses context variable (stored in REPL)
+        - Calls llm_query(prompt, context_chunk) for semantic operations
+        - Stores final result in 'result' variable
+        - Uses print() for intermediate outputs
+        """
+        system_prompt = """You are a Python code planner for processing long documents.
+
+Your task: Generate Python code that solves the given task using the available context.
+
+Available in execution environment:
+- context: The full document/data (can be very long, 10M+ tokens)
+- llm_query(prompt, context_chunk): Async function to query LLM on chunks
+  - Use this for hard semantic operations only after lighter heuristics
+  - Pass small context_chunk (not entire context) to stay under token limits
+  - Returns string response from LLM
+
+Code requirements:
+1. Store final answer in variable named 'result'
+2. Use print() for intermediate outputs/debugging
+3. Process context in chunks if needed (e.g., split by sections, paragraphs)
+4. Before calling llm_query(), apply deterministic heuristics to each chunk such as regex matches, character counts, and sampling the first 10-15 words.
+   - For example, run a regex to capture "$ digits" when searching for revenue or using parallel regex search for all types of "AI" questions.
+   - Measure the chunk length, word counts, or presence of keywords to rank chunks.
+   - Use these filtering steps to narrow down candidate chunks to a handful before any LM call.
+5. Use llm_query() only after heuristics indicate a chunk is likely relevant; mention the heuristic evidence when deciding to call the LM.
+6. Use regular Python for filtering, counting, and aggregation.
+7. Be efficient—minimize LM calls (max 50 per execution) and avoid redundant prompts by caching or reusing results within the REPL.
+
+Example pattern showing the heuristic-first approach:
+```python
+chunks = context.split('\\n---\\n')
+candidates = []
+pattern = re.compile(r'Q3 2022.*Revenue:\\s*\\$([0-9,.]+)M')
+
+for chunk in chunks:
+    header = chunk.strip().split('\\n')[0]
+    snippet = ' '.join(chunk.split()[:15])
+    if pattern.search(chunk) or 'Q3 2022' in header:
+        candidates.append((chunk, snippet))
+
+results = []
+for chunk, snippet in candidates[:5]:
+    print(f\"Heuristic candidates: {snippet}\")
+    response = await llm_query(\"Does this chunk have the data we need?\", chunk)
+    if \"yes\" in response.lower():
+        results.append(chunk)
+
+result = len(results)
+print(f\"Processed {len(candidates)} heuristic candidates and found {result} relevant chunks\") 
+```
+
+Generate ONLY the Python code, no explanations."""
+
+from nons.core.node import Node
+from nons.core.types import ModelConfig, ModelProvider
+from .rlm_operator import RLMOperator, RLMExecutionResult
+
+
+class RLMIteration(BaseModel):
+    """Single iteration of RLM loop"""
+
+    iteration: int
+    code: str
+    execution_result: Dict[str, Any]
+    had_error: bool
+    fixed_code: Optional[str] = None
+    confidence: float
+    verifier_reasoning: str
+
+
+class RLMResult(BaseModel):
+    """Final result from RLM network"""
+
+    success: bool
+    final_output: Any
+    iterations: List[RLMIteration]
+    total_llm_calls: int
+    total_iterations: int
+    final_confidence: float
+    stop_reason: str  # "confidence_threshold", "max_iterations", "error"
+
+
+class RLMNetwork:
+    """
+    Network implementing Plan-Execute-Verify-Refine loop for RLM.
+
+    Architecture:
+    - Planner Node: Node('generate') with planning system prompt
+    - Fixer Node: Node('generate') with fixing system prompt
+    - Verifier Node: Node('generate') with verification system prompt
+    - RLM Operator: Executes code with llm_query()
+
+    All nodes use gpt-5.2 for cost efficiency.
+    """
+
+    def __init__(
+        self,
+        max_iterations: int = 5,
+        confidence_threshold: float = 0.8,
+        max_llm_calls_per_execution: int = 50
+    ):
+        """
+        Initialize RLM Network.
+
+        Args:
+            max_iterations: Maximum refinement iterations
+            confidence_threshold: Stop if confidence exceeds this
+            max_llm_calls_per_execution: Max LLM calls in single code execution
+        """
+        self.max_iterations = max_iterations
+        self.confidence_threshold = confidence_threshold
+
+        # Create model config (gpt-4o-mini for all nodes)
+        self.model_config = ModelConfig(
+            provider=ModelProvider.OPENAI,
+            model_name="gpt-4o-mini",
+            temperature=0.7,
+            max_tokens=2000
+        )
+
+        # Initialize RLM operator
+        self.rlm_operator = RLMOperator(
+            model_config=self.model_config,
+            max_llm_calls=max_llm_calls_per_execution
+        )
+
+        # Create nodes
+        self.planner_node = self._create_planner_node()
+        self.fixer_node = self._create_fixer_node()
+        self.verifier_node = self._create_verifier_node()
+
+        # Track iterations
+        self.iterations: List[RLMIteration] = []
+
+    def _create_planner_node(self) -> Node:
+        """
+        Create Planner node with system prompt.
+
+        Planner generates Python code that:
+        - Uses context variable (stored in REPL)
+        - Calls llm_query(prompt, context_chunk) for semantic operations
+        - Stores final result in 'result' variable
+        - Uses print() for intermediate outputs
+        """
+        system_prompt = """You are a Python code planner for processing long documents.
+
+Your task: Generate Python code that solves the given task using the available context.
+
+Available in execution environment:
+- context: The full document/data (can be very long, 10M+ tokens)
+- llm_query(prompt, context_chunk): Async function to query LLM on chunks
+  - Use this for hard semantic operations only after lighter heuristics
+  - Pass small context_chunk (not entire context) to stay under token limits
+  - Returns string response from LLM
+
+Code requirements:
+1. Store final answer in variable named 'result'
+2. Use print() for intermediate outputs/debugging
+3. Process context in chunks if needed (e.g., split by sections, paragraphs)
+4. Before calling llm_query(), apply deterministic heuristics to each chunk such as regex matches, character counts, and sampling the first 10-15 words.
+   - For example, run a regex to capture "$ digits" when searching for revenue or using parallel regex search for all types of "AI" questions.
+   - Measure the chunk length, word counts, or presence of keywords to rank chunks.
+   - Use these filtering steps to narrow down candidate chunks to a handful before any LM call.
+5. Use llm_query() only after heuristics indicate a chunk is likely relevant; mention the heuristic evidence when deciding to call the LM.
+6. Use regular Python for filtering, counting, and aggregation.
+7. Be efficient—minimize LM calls (max 50 per execution) and avoid redundant prompts by caching or reusing results within the REPL.
+
+Example pattern showing the heuristic-first approach:
+```python
+chunks = context.split('\\n---\\n')
+candidates = []
+pattern = re.compile(r'Q3 2022.*Revenue:\\s*\\$([0-9,.]+)M')
+
+for chunk in chunks:
+    header = chunk.strip().split('\\n')[0]
+    snippet = ' '.join(chunk.split()[:15])
+    if pattern.search(chunk) or 'Q3 2022' in header:
+        candidates.append((chunk, snippet))
+
+results = []
+for chunk, snippet in candidates[:5]:
+    print(f\"Heuristic candidates: {snippet}\")
+    response = await llm_query(\"Does this chunk have the data we need?\", chunk)
+    if \"yes\" in response.lower():
+        results.append(chunk)
+
+result = len(results)
+print(f\"Processed {len(candidates)} heuristic candidates and found {result} relevant chunks\") 
+```
+
+Generate ONLY the Python code, no explanations."""
+
+from nons.core.node import Node
+from nons.core.types import ModelConfig, ModelProvider
+from .rlm_operator import RLMOperator, RLMExecutionResult
+
+
+class RLMIteration(BaseModel):
+    """Single iteration of RLM loop"""
+
+    iteration: int
+    code: str
+    execution_result: Dict[str, Any]
+    had_error: bool
+    fixed_code: Optional[str] = None
+    confidence: float
+    verifier_reasoning: str
+
+
+class RLMResult(BaseModel):
+    """Final result from RLM network"""
+
+    success: bool
+    final_output: Any
+    iterations: List[RLMIteration]
+    total_llm_calls: int
+    total_iterations: int
+    final_confidence: float
+    stop_reason: str  # "confidence_threshold", "max_iterations", "error"
+
+
+class RLMNetwork:
+    """
+    Network implementing Plan-Execute-Verify-Refine loop for RLM.
+
+    Architecture:
+    - Planner Node: Node('generate') with planning system prompt
+    - Fixer Node: Node('generate') with fixing system prompt
+    - Verifier Node: Node('generate') with verification system prompt
+    - RLM Operator: Executes code with llm_query()
+
+    All nodes use gpt-5.2 for cost efficiency.
+    """
+
+    def __init__(
+        self,
+        max_iterations: int = 5,
+        confidence_threshold: float = 0.8,
+        max_llm_calls_per_execution: int = 50
+    ):
+        """
+        Initialize RLM Network.
+
+        Args:
+            max_iterations: Maximum refinement iterations
+            confidence_threshold: Stop if confidence exceeds this
+            max_llm_calls_per_execution: Max LLM calls in single code execution
+        """
+        self.max_iterations = max_iterations
+        self.confidence_threshold = confidence_threshold
+
+        # Create model config (gpt-4o-mini for all nodes)
+        self.model_config = ModelConfig(
+            provider=ModelProvider.OPENAI,
+            model_name="gpt-4o-mini",
+            temperature=0.7,
+            max_tokens=2000
+        )
+
+        # Initialize RLM operator
+        self.rlm_operator = RLMOperator(
+            model_config=self.model_config,
+            max_llm_calls=max_llm_calls_per_execution
+        )
+
+        # Create nodes
+        self.planner_node = self._create_planner_node()
+        self.fixer_node = self._create_fixer_node()
+        self.verifier_node = self._create_verifier_node()
+
+        # Track iterations
+        self.iterations: List[RLMIteration] = []
+
+    def _create_planner_node(self) -> Node:
+        """
+        Create Planner node with system prompt.
+
+        Planner generates Python code that:
+        - Uses context variable (stored in REPL)
+        - Calls llm_query(prompt, context_chunk) for semantic operations
+        - Stores final result in 'result' variable
+        - Uses print() for intermediate outputs
+        """
+        system_prompt = """You are a Python code planner for processing long documents.
+
+Your task: Generate Python code that solves the given task using the available context.
+
+Available in execution environment:
+- context: The full document/data (can be very long, 10M+ tokens)
+- llm_query(prompt, context_chunk): Async function to query LLM on chunks
+  - Use this for hard semantic operations only after lighter heuristics
+  - Pass small context_chunk (not entire context) to stay under token limits
+  - Returns string response from LLM
+
+Code requirements:
+1. Store final answer in variable named 'result'
+2. Use print() for intermediate outputs/debugging
+3. Process context in chunks if needed (e.g., split by sections, paragraphs)
+4. Before calling llm_query(), apply deterministic heuristics to each chunk such as regex matches, character counts, and sampling the first 10-15 words.
+   - For example, run a regex to capture "$ digits" when searching for revenue or using parallel regex search for all types of "AI" questions.
+   - Measure the chunk length, word counts, or presence of keywords to rank chunks.
+   - Use these filtering steps to narrow down candidate chunks to a handful before any LM call.
+5. Use llm_query() only after heuristics indicate a chunk is likely relevant; mention the heuristic evidence when deciding to call the LM.
+6. Use regular Python for filtering, counting, and aggregation.
+7. Be efficient—minimize LM calls (max 50 per execution) and avoid redundant prompts by caching or reusing results within the REPL.
+
+Example pattern showing the heuristic-first approach:
+```python
+chunks = context.split('\\n---\\n')
+candidates = []
+pattern = re.compile(r'Q3 2022.*Revenue:\\s*\\$([0-9,.]+)M')
+
+for chunk in chunks:
+    header = chunk.strip().split('\\n')[0]
+    snippet = ' '.join(chunk.split()[:15])
+    if pattern.search(chunk) or 'Q3 2022' in header:
+        candidates.append((chunk, snippet))
+
+results = []
+for chunk, snippet in candidates[:5]:
+    print(f\"Heuristic candidates: {snippet}\")
+    response = await llm_query(\"Does this chunk have the data we need?\", chunk)
+    if \"yes\" in response.lower():
+        results.append(chunk)
+
+result = len(results)
+print(f\"Processed {len(candidates)} heuristic candidates and found {result} relevant chunks\") 
+```
+
+Generate ONLY the Python code, no explanations."""
+
+class RLMResult(BaseModel):
+    """Final result from RLM network"""
+
+    success: bool
+    final_output: Any
+    iterations: List[RLMIteration]
+    total_llm_calls: int
+    total_iterations: int
+    final_confidence: float
+    stop_reason: str  # "confidence_threshold", "max_iterations", "error"
+
+
+class RLMNetwork:
+    """
+    Network implementing Plan-Execute-Verify-Refine loop for RLM.
+
+    Architecture:
+    - Planner Node: Node('generate') with planning system prompt
+    - Fixer Node: Node('generate') with fixing system prompt
+    - Verifier Node: Node('generate') with verification system prompt
+    - RLM Operator: Executes code with llm_query()
+
+    All nodes use gpt-5.2 for cost efficiency.
+    """
+
+    def __init__(
+        self,
+        max_iterations: int = 5,
+        confidence_threshold: float = 0.8,
+        max_llm_calls_per_execution: int = 50
+    ):
+        """
+        Initialize RLM Network.
+
+        Args:
+            max_iterations: Maximum refinement iterations
+            confidence_threshold: Stop if confidence exceeds this
+            max_llm_calls_per_execution: Max LLM calls in single code execution
+        """
+        self.max_iterations = max_iterations
+        self.confidence_threshold = confidence_threshold
+
+        # Create model config (gpt-4o-mini for all nodes)
+        self.model_config = ModelConfig(
+            provider=ModelProvider.OPENAI,
+            model_name="gpt-4o-mini",
+            temperature=0.7,
+            max_tokens=2000
+        )
+
+        # Initialize RLM operator
+        self.rlm_operator = RLMOperator(
+            model_config=self.model_config,
+            max_llm_calls=max_llm_calls_per_execution
+        )
+
+        # Create nodes
+        self.planner_node = self._create_planner_node()
+        self.fixer_node = self._create_fixer_node()
+        self.verifier_node = self._create_verifier_node()
+
+        # Track iterations
+        self.iterations: List[RLMIteration] = []
+
+    def _create_planner_node(self) -> Node:
+        """
+        Create Planner node with system prompt.
+
+        Planner generates Python code that:
+        - Uses context variable (stored in REPL)
+        - Calls llm_query(prompt, context_chunk) for semantic operations
+        - Stores final result in 'result' variable
+        - Uses print() for intermediate outputs
+        """
+        system_prompt = """You are a Python code planner for processing long documents.
+
+Your task: Generate Python code that solves the given task using the available context.
+
+Available in execution environment:
+- context: The full document/data (can be very long, 10M+ tokens)
+- llm_query(prompt, context_chunk): Async function to query LLM on chunks
+  - Use this for hard semantic operations only after lighter heuristics
+  - Pass small context_chunk (not entire context) to stay under token limits
+  - Returns string response from LLM
+
+Code requirements:
+1. Store final answer in variable named 'result'
+2. Use print() for intermediate outputs/debugging
+3. Process context in chunks if needed (e.g., split by sections, paragraphs)
+4. Before calling llm_query(), apply deterministic heuristics to each chunk such as regex matches, character counts, and sampling the first 10-15 words.
+   - For example, run a regex to capture "$ digits" when searching for revenue or using parallel regex search for all types of "AI" questions.
+   - Measure the chunk length, word counts, or presence of keywords to rank chunks.
+   - Use these filtering steps to narrow down candidate chunks to a handful before any LM call.
+5. Use llm_query() only after heuristics indicate a chunk is likely relevant; mention the heuristic evidence when deciding to call the LM.
+6. Use regular Python for filtering, counting, and aggregation.
+7. Be efficient—minimize LM calls (max 50 per execution) and avoid redundant prompts by caching or reusing results within the REPL.
+
+Example pattern showing the heuristic-first approach:
+```python
+chunks = context.split('\\n---\\n')
+candidates = []
+pattern = re.compile(r'Q3 2022.*Revenue:\\s*\\$([0-9,.]+)M')
+
+for chunk in chunks:
+    header = chunk.strip().split('\\n')[0]
+    snippet = ' '.join(chunk.split()[:15])
+    if pattern.search(chunk) or 'Q3 2022' in header:
+        candidates.append((chunk, snippet))
+
+results = []
+for chunk, snippet in candidates[:5]:
+    print(f\"Heuristic candidates: {snippet}\")
+    response = await llm_query(\"Does this chunk have the data we need?\", chunk)
+    if \"yes\" in response.lower():
+        results.append(chunk)
+
+result = len(results)
+print(f\"Processed {len(candidates)} heuristic candidates and found {result} relevant chunks\") 
+```
+
+Generate ONLY the Python code, no explanations."""
+
+
+class RLMNetwork:
+    """
+    Network implementing Plan-Execute-Verify-Refine loop for RLM.
+
+    Architecture:
+    - Planner Node: Node('generate') with planning system prompt
+    - Fixer Node: Node('generate') with fixing system prompt
+    - Verifier Node: Node('generate') with verification system prompt
+    - RLM Operator: Executes code with llm_query()
+
+    All nodes use gpt-5.2 for cost efficiency.
+    """
+
+    def __init__(
+        self,
+        max_iterations: int = 5,
+        confidence_threshold: float = 0.8,
+        max_llm_calls_per_execution: int = 50
+    ):
+        """
+        Initialize RLM Network.
+
+        Args:
+            max_iterations: Maximum refinement iterations
+            confidence_threshold: Stop if confidence exceeds this
+            max_llm_calls_per_execution: Max LLM calls in single code execution
+        """
+        self.max_iterations = max_iterations
+        self.confidence_threshold = confidence_threshold
+
+        # Create model config (gpt-4o-mini for all nodes)
+        self.model_config = ModelConfig(
+            provider=ModelProvider.OPENAI,
+            model_name="gpt-4o-mini",
+            temperature=0.7,
+            max_tokens=2000
+        )
+
+        # Initialize RLM operator
+        self.rlm_operator = RLMOperator(
+            model_config=self.model_config,
+            max_llm_calls=max_llm_calls_per_execution
+        )
+
+        # Create nodes
+        self.planner_node = self._create_planner_node()
+        self.fixer_node = self._create_fixer_node()
+        self.verifier_node = self._create_verifier_node()
+
+        # Track iterations
+        self.iterations: List[RLMIteration] = []
+
+    def _create_planner_node(self) -> Node:
+        """
+        Create Planner node with system prompt.
+
+        Planner generates Python code that:
+        - Uses context variable (stored in REPL)
+        - Calls llm_query(prompt, context_chunk) for semantic operations
+        - Stores final result in 'result' variable
+        - Uses print() for intermediate outputs
+        """
+        system_prompt = """You are a Python code planner for processing long documents.
+
+Your task: Generate Python code that solves the given task using the available context.
+
+Available in execution environment:
+- context: The full document/data (can be very long, 10M+ tokens)
+- llm_query(prompt, context_chunk): Async function to query LLM on chunks
+  - Use this for hard semantic operations only after lighter heuristics
+  - Pass small context_chunk (not entire context) to stay under token limits
+  - Returns string response from LLM
+
+Code requirements:
+1. Store final answer in variable named 'result'
+2. Use print() for intermediate outputs/debugging
+3. Process context in chunks if needed (e.g., split by sections, paragraphs)
+4. Before calling llm_query(), apply deterministic heuristics to each chunk such as regex matches, character counts, and sampling the first 10-15 words.
+   - For example, run a regex to capture "$ digits" when searching for revenue or using parallel regex search for all types of "AI" questions.
+   - Measure the chunk length, word counts, or presence of keywords to rank chunks.
+   - Use these filtering steps to narrow down candidate chunks to a handful before any LM call.
+5. Use llm_query() only after heuristics indicate a chunk is likely relevant; mention the heuristic evidence when deciding to call the LM.
+6. Use regular Python for filtering, counting, and aggregation.
+7. Be efficient—minimize LM calls (max 50 per execution) and avoid redundant prompts by caching or reusing results within the REPL.
+
+Heuristic techniques to use BEFORE llm_query():
+
+A. Regex patterns - Use when looking for structured data or specific formats:
+   - Financial data: re.search(r'\\$[0-9,.]+[MB]', chunk) or re.search(r'revenue.*\\$([0-9,.]+)', chunk, re.IGNORECASE)
+   - Dates: re.search(r'Q[1-4]\\s+20\\d{2}', chunk) or re.search(r'\\d{4}-\\d{2}-\\d{2}', chunk)
+   - Email/URLs: re.search(r'\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b', chunk)
+   - Why: Regex is 1000x faster than LLM calls and perfect for pattern matching
+
+B. String length filtering - Use to eliminate trivial or oversized chunks:
+   - Minimum content: len(chunk) > 200 to skip headers/footers
+   - Maximum size: len(chunk) < 5000 to avoid token limit issues
+   - Why: Prevents wasting LLM calls on empty sections or chunks too large to process
+
+C. Word count analysis - Use to assess content density and relevance:
+   - Substantial content: len(chunk.split()) > 50 for meaningful sections
+   - Keyword density: chunk.lower().count('ai') / len(chunk.split()) > 0.01
+   - Why: Word counts help identify information-rich sections worth LLM analysis
+
+D. First N words/chars preview - Use for quick content identification:
+   - Preview: ' '.join(chunk.split()[:15]) to see topic without reading all
+   - Snippet: chunk[:100] for fast header/title extraction
+   - Why: Lets you quickly scan what a chunk is about before expensive LLM call
+
+E. Keyword presence - Use for topic filtering:
+   - Simple match: 'revenue' in chunk.lower() or 'artificial intelligence' in chunk.lower()
+   - Multiple keywords: any(kw in chunk.lower() for kw in ['ai', 'machine learning', 'neural'])
+   - Why: Fast boolean checks eliminate irrelevant chunks immediately
+
+F. Section structure - Use to understand document organization:
+   - Headers: chunk.strip().split('\\n')[0] to extract section titles
+   - Subsections: chunk.count('##') or chunk.count('\\n\\n') for structure
+   - Why: Document structure helps identify where relevant info is likely located
+
+Once you feel like you've exhausted the usage of the heuristics, move on over to using llm_query to do some comprehensive searches.
+
+These searches can happen after you've narrowed down chunks or narrowed down the texts to a set of sentences as well to reduce the cognitive load of number of LLM calls.
+
+Ensure you are only returning Python code to be executed in the Python REPL sandbox.
+"""
 
         return Node(
             operator_name="generate",
@@ -210,6 +1033,7 @@ Consider:
 2. Is there a valid result?
 3. Does the approach make sense for the task?
 4. Are there any logical errors in the solution?
+5. How does the entire distribution of plausible answers look? Calibrate your confidence by describing alternative outcomes and how the probability mass spreads across them (even if the mass concentrates on one best answer).
 
 Return your response in this format:
 CONFIDENCE: <float 0-1>
@@ -265,6 +1089,8 @@ REASONING: Code executed successfully, found 5 relevant sections using semantic 
 
         for iteration in range(self.max_iterations):
             print(f"\n=== Iteration {iteration + 1}/{self.max_iterations} ===")
+            print("Python REPL: executing the generated plan inside the persistent environment, refining its state with each pass.")
+            print("The REPL retains llm_query, the document context, and previous outputs so subsequent refinements can focus on the weakest links.")
 
             # Step 1: Plan (generate code)
             print("Planning...")
@@ -279,10 +1105,14 @@ REASONING: Code executed successfully, found 5 relevant sections using semantic 
             exec_result = await self.rlm_operator.execute(code)
             total_llm_calls += exec_result.llm_calls
 
+            repl_state = self.rlm_operator.get_environment_info()
+            print("Python REPL state summary:", repl_state)
+
             # Step 2.5: If error, fix once and retry
             fixed_code = None
             if exec_result.error:
-                print(f"Error occurred: {exec_result.error[:100]}...")
+                print("Error occurred:")
+                print(exec_result.error)
                 print("Calling fixer...")
 
                 fix_prompt = f"""Original code:
@@ -320,13 +1150,14 @@ Result: {exec_result.result}
 
 Error: {exec_result.error if exec_result.error else "None"}
 
-Verify the result and provide confidence."""
+Verify the result and provide confidence. Calibrate the entire probability distribution of outcomes, noting any alternative answers you considered and how you weighed them relative to your final confidence."""
 
             verification_response = await self.verifier_node.execute(verify_prompt)
             confidence, reasoning = self._parse_verification_response(verification_response)
 
             print(f"Confidence: {confidence:.2f}")
-            print(f"Reasoning: {reasoning[:100]}...")
+            print("Reasoning:", reasoning)
+            print("Refinement focus: adjusting the Python REPL plan based on verifier feedback and exploring the other plausible answer regions.")
 
             # Record iteration
             # had_error is True if we had to call the fixer (fixed_code is not None)
