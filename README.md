@@ -1,15 +1,17 @@
 # NoN: Network of Networks
 
-NoN is a framework for building the next generation of compound AI systems. As AI systems move away from single-shot inference and toward orchestrated, multi-step reasoning across diverse model modalities and providers. As the limits of individual thinking and non-thinking model inference becomes clear, the future of engineering frontier AI systems lie in the composition and coordination of many specialized model calls, each tuned for a specific role within a larger, adaptive workflow. NoN is designed to make this kind of systems engineering tractable, scalable, and robust.
+NoN is a framework for building the next generation of compound AI systems. As AI systems move away from single-shot inference and toward orchestrated, multi-step reasoning across diverse model modalities and providers, the limits of individual model inference are becoming clear. The future of engineering frontier AI systems lies in the composition and coordination of many specialized model calls, each tuned for a specific role within a larger, adaptive workflow.
 
-At its core, NoN provides the abstractions and infrastructure to construct, schedule, and observe networks of operators—each a distinct, reusable function with functional AI model use cases. These operators are composed into nodes, layers, and ultimately networks, enabling parallel execution, intelligent routing, and fine-grained control over model "parameters" and prompt context. The result is a platform for experimenting with and deploying complex, high-performance AI workflows that can outperform monolithic models on challenging, real-world tasks where both cost, performance, and interpretability are the most important levers to have control over.
+NoNs are designed to make this kind of systems engineering tractable, scalable, and robust. Heavily inspired by Jared Quincy Davis, Ember, and (Are LLM Calls All You Need?)[https://arxiv.org/abs/2403.02419]
+
+At its core, NoN provides the abstractions and infrastructure to construct, schedule, and observe networks of "operators". Each a distinct, reusable function with functional AI model use cases. These operators are composed into nodes, layers, and ultimately networks, enabling parallel execution, intelligent routing, and fine-grained control over model "parameters" and prompt context. The result is a platform for experimenting with and deploying complex, high-performance AI workflows that can outperform monolithic models on challenging, real-world tasks where both cost, performance, and interpretability are the most important levers to have control over.
 
 ---
 
 ## Vocabulary
 
-- **NoN**: Network of Networks—a flexible, directed network of interconnected nodes passing information forward, generalizing the concept of neural networks for compound AI systems.
-- **Forward Pass**: A single execution of all model calls through the network, analogous to a forward pass in deep learning.
+- **NoN**: Network of Networks – a flexible, directed network of interconnected nodes passing information forward, generalizing the concept of neural networks for compound AI systems.
+- **Forward Pass**: A single execution of all sequential and layered model calls through the network, analogous to a forward pass in deep learning.
 - **Operator**: A function encapsulating a specific AI model operation, with fixed inputs and outputs, registered for reuse and composition.
 - **Node**: An instance of an operator with specific configuration (prompt context, model, hyperparameters), positioned within a NoN.
 - **Layer**: An array of nodes executed in parallel within a network.
@@ -17,11 +19,11 @@ At its core, NoN provides the abstractions and infrastructure to construct, sche
 
 ## Key Features
 
-- **Modular Operators**: 14+ built-in operators (Transform, Generate, Classify, Extract, etc.) plus deterministic ensemble operators
+- **Modular Operators**: 14+ built-in operators (Transform, Generate, Classify, Extract, etc.) plus heuristic-based ensemble operators
 - **Network Composition**: Chain operators into sequential layers and parallel nodes
-- **Async Execution**: High-performance concurrent execution with asyncio
-- **Smart Scheduling**: Request scheduling with rate limiting and queue management
-- **Full Observability**: Distributed tracing, structured logging, and metrics collection
+- **Async Execution**: Improve performance using concurrent execution with asyncio
+- **Smart Scheduling**: Request scheduling with rate limiting and queue management across model providers
+- **Full Observability**: Full network tracing, structured logging, and metrics collection
 - **Multi-Provider Support**: OpenAI, Anthropic, Google Gemini with automatic fallbacks
 - **Robust Error Handling**: Multiple error policies and retry strategies
 - **Parallel Scaling**: Node multiplication operator for easy parallel processing
@@ -36,7 +38,7 @@ Network (NoN)
 └── Layer 3: [Node E] ──┘
 ```
 
-- **Operators**: Functional units that transform content (transform, generate, classify, etc.)
+- **Operators**: Functional units that transform content (Transform, Generate, Classify, Extract, etc.)
 - **Nodes**: Configured instances of operators with model settings and context
 - **Layers**: Collections of nodes that execute in parallel
 - **Networks**: Sequential chains of layers that process data through a pipeline
@@ -119,7 +121,7 @@ async def advanced_example():
     # Create a base node
     generator = Node('generate', model_config=ModelConfig(
         provider=ModelProvider.ANTHROPIC,
-        model_name="claude-3-5-haiku-20241022",
+        model_name="claude-haiku-4-5",
         max_tokens=100
     ))
 
@@ -161,7 +163,7 @@ from nons.core.types import ModelConfig, ModelProvider
 
 config = ModelConfig(
     provider=ModelProvider.GOOGLE,
-    model_name="gemini-2.5-flash",
+    model_name="gemini-3-flash",
     temperature=0.7,
     max_tokens=150,
     top_p=0.9
@@ -246,7 +248,7 @@ Generate multiple candidates and select the highest quality response.
 # Create generator with high diversity
 generator = Node('generate', model_config=ModelConfig(
     provider=ModelProvider.ANTHROPIC,
-    model_name="claude-3-5-sonnet-20241022",
+    model_name="claude-sonnet-4-5",
     temperature=0.9  # High diversity
 ))
 
