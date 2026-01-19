@@ -2,7 +2,7 @@
 
 NoN is a framework for building the next generation of compound AI systems. As AI systems move away from single-shot inference and toward orchestrated, multi-step reasoning across diverse model modalities and providers, the limits of individual model inference are becoming clear. The future of engineering frontier AI systems lies in the composition and coordination of many specialized model calls, each tuned for a specific role within a larger, adaptive workflow.
 
-NoNs are designed to make this kind of systems engineering tractable, scalable, and robust. Heavily inspired by Jared Quincy Davis, Ember, and (Are LLM Calls All You Need?)[https://arxiv.org/abs/2403.02419]
+NoNs are designed to make this kind of systems engineering tractable, scalable, and robust. Heavily inspired by Jared Quincy Davis, Ember, and [Are LLM Calls All You Need?](https://arxiv.org/abs/2403.02419)
 
 At its core, NoN provides the abstractions and infrastructure to construct, schedule, and observe networks of "operators". Each a distinct, reusable function with functional AI model use cases. These operators are composed into nodes, layers, and ultimately networks, enabling parallel execution, intelligent routing, and fine-grained control over model "parameters" and prompt context. The result is a platform for experimenting with and deploying complex, high-performance AI workflows that can outperform monolithic models on challenging, real-world tasks where both cost, performance, and interpretability are the most important levers to have control over.
 
