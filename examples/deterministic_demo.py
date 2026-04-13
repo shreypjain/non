@@ -293,40 +293,37 @@ async def demo_non_integration():
     print("\n🌐 INTEGRATION WITH NoN NETWORKS")
     print("=" * 50)
 
-    # Create a network that uses deterministic operators
+    # Create a network that uses deterministic operators.
+    # Pipeline: pack raw strings -> select top candidates -> majority vote.
     try:
-        # Note: These operators are registered with the NoN registry
         network = NoN.from_operators(
             [
-                "pack_candidates",  # Structure the data
-                "majority",  # Find consensus
-                "extract_winners",  # Select top results
+                "pack_candidates",  # Structure the raw strings into candidates
+                "extract_winners",  # Select top-scoring candidates
+                "majority",  # Find consensus among the selected candidates
             ]
         )
 
         print("Created NoN network with deterministic operators:")
         print(f"Network layers: {len(network.layers)}")
 
-        # Test data for the network
-        test_input = {
-            "input_data": [
-                "Machine learning enables intelligent automation",
-                "AI systems can automate complex decision making",
-                "Automated intelligence through machine learning",
-                "Machine learning enables intelligent automation",  # Duplicate
-            ]
-        }
+        # Pass the list of strings directly so pack_candidates receives them correctly.
+        test_input = [
+            "Machine learning enables intelligent automation",
+            "AI systems can automate complex decision making",
+            "Automated intelligence through machine learning",
+            "Machine learning enables intelligent automation",  # Duplicate
+        ]
 
-        print(f"\nInput: {len(test_input['input_data'])} responses")
+        print(f"\nInput: {len(test_input)} responses")
 
         # Execute the network
         result = await network.forward(test_input)
-        print(f"\nNetwork output: {type(result)}")
+        print(f"\nNetwork output type: {type(result.final_output).__name__}")
         print(f"Final result: {result}")
 
     except Exception as e:
-        print(f"Network integration demo skipped: {e}")
-        print("(This is expected if running without full NoN environment)")
+        print(f"Network integration demo failed: {e}")
 
 
 async def main():

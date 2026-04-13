@@ -433,6 +433,7 @@ class SelectById(DeterministicOp):
 
 
 @operator(
+    name="pack_candidates",
     input_schema=InputSchema(
         required_params=["input_data"],
         optional_params=[],
@@ -456,6 +457,7 @@ async def pack_candidates_op(input_data: Any) -> PackedCandidates:
 
 
 @operator(
+    name="extract_winners",
     input_schema=InputSchema(
         required_params=["input_data"],
         optional_params=["strategy", "k", "threshold", "percentile"],
@@ -492,6 +494,7 @@ async def extract_winners_op(
 
 
 @operator(
+    name="majority",
     input_schema=InputSchema(
         required_params=["input_data"],
         optional_params=["strategy", "min_consensus"],
@@ -517,6 +520,7 @@ async def majority_op(
 
 
 @operator(
+    name="select_by_id",
     input_schema=InputSchema(
         required_params=["input_data", "target_ids"],
         optional_params=[],
