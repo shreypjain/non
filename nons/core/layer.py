@@ -220,9 +220,16 @@ class Layer:
                 ) from e
 
     def _prepare_inputs(self, inputs: Union[List[Any], Any]) -> List[Any]:
-        """Prepare inputs for each node."""
-        if isinstance(inputs, list) and len(inputs) == len(self.nodes):
-            # Distribute inputs one-to-one with nodes
+        """Prepare inputs for each node.
+
+        When a multi-node layer receives a list whose length matches the node
+        count, each element is distributed 1-to-1.  For single-node layers the
+        input is always broadcast as-is so that operator return values that are
+        lists (e.g. List[Candidate] from extract_winners) are forwarded whole
+        rather than unwrapped.
+        """
+        if isinstance(inputs, list) and len(inputs) == len(self.nodes) and len(self.nodes) > 1:
+            # Distribute inputs one-to-one with nodes (multi-node layers only)
             return inputs
         else:
             # Broadcast single input to all nodes
