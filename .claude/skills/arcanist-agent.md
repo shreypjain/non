@@ -14,6 +14,142 @@ Arcanist is powered by Claude (`claude-opus-4-6`). It follows instructions from 
 
 ---
 
+## Arcanist CLI Reference
+
+Arcanist is operated via the `arcanist` command-line tool. Below is every command with its exact usage.
+
+### Installation and Authentication
+
+```bash
+# Check version
+arcanist --version
+
+# Authenticate with your personal access token
+arcanist login --token <your-pat>
+
+# Interactive login (prompts for token)
+arcanist login
+```
+
+`login` stores your credentials locally so subsequent commands are authenticated.
+
+### Creating a Session
+
+```bash
+arcanist create <repo-url> <prompt>
+```
+
+This is the primary entry point. It creates a new session against the given repository and sends your prompt as the initial task.
+
+| Option | Description |
+|--------|-------------|
+| `<repo-url>` | The GitHub repository URL (e.g. `https://github.com/org/repo`) |
+| `<prompt>` | The task description in natural language |
+
+**Example:**
+
+```bash
+arcanist create https://github.com/shreypjain/non \
+  "Add retry logic to the scheduler with exponential backoff and tests"
+```
+
+The command returns a **session ID** that you use with all other commands.
+
+### Sending Follow-up Messages
+
+```bash
+arcanist message <session-id> <prompt>
+```
+
+Sends an additional message to an existing session. Use this to provide follow-up instructions, corrections, or new tasks within the same session context.
+
+**Example:**
+
+```bash
+arcanist message ses_abc123 "Also add a max_retries parameter with a default of 3"
+```
+
+### Stopping a Session
+
+```bash
+arcanist stop <session-id>
+```
+
+Stops the active run for the given session. Use this if the agent is running and you want to cancel the current task.
+
+**Example:**
+
+```bash
+arcanist stop ses_abc123
+```
+
+### Viewing the Transcript
+
+```bash
+arcanist transcript <session-id>
+```
+
+Renders the full session transcript -- every message, tool call, and result from the session. Use this to review what Arcanist did, what files it changed, and what commands it ran.
+
+**Example:**
+
+```bash
+arcanist transcript ses_abc123
+```
+
+### Watching a Session
+
+```bash
+arcanist watch <session-id>
+```
+
+Streams session activity in real time until the session becomes idle. Use this to monitor Arcanist as it works.
+
+**Example:**
+
+```bash
+arcanist watch ses_abc123
+```
+
+### Full Command Summary
+
+```
+arcanist login [options]                       Authenticate with a personal access token
+arcanist create [options] <repo-url> <prompt>  Create a session and send a prompt
+arcanist message <session-id> <prompt>         Send a message to an existing session
+arcanist stop <session-id>                     Stop the active run for a session
+arcanist transcript [options] <session-id>     Render a session transcript
+arcanist watch [options] <session-id>          Watch session activity until it becomes idle
+arcanist help [command]                        Display help for a specific command
+```
+
+### Typical Workflow
+
+```bash
+# 1. Authenticate (one-time setup)
+arcanist login --token pat_xxxxxxxxxxxx
+
+# 2. Create a session with your task
+arcanist create https://github.com/shreypjain/non \
+  "Fix the divide-by-zero bug in the scheduler when requests_per_minute is 0"
+
+# Output: Session created: ses_abc123
+
+# 3. Watch it work in real time
+arcanist watch ses_abc123
+
+# 4. Send a follow-up if needed
+arcanist message ses_abc123 "Make sure you add a test for that edge case too"
+
+# 5. Review the full transcript when done
+arcanist transcript ses_abc123
+
+# 6. Stop it if you need to cancel
+arcanist stop ses_abc123
+```
+
+---
+
 ## How to Give Arcanist a Task
 
 ### Effective Task Format
