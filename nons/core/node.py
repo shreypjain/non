@@ -228,11 +228,16 @@ class Node:
                 result, metrics = await provider.generate_completion(prompt)
                 return result, metrics
             except Exception as e:
-                # If real API fails, fall back to mock provider
+                # If real API fails, fall back to mock provider.
+                # Explicitly reset provider and cost on the returned metrics so
+                # that callers always see accurate fallback attribution even if
+                # the metrics object was pre-populated with real-provider values.
                 from ..utils.providers import MockProvider
 
                 mock_provider = MockProvider(self.model_config)
                 result, metrics = await mock_provider.generate_completion(prompt)
+                metrics.provider = "mock"
+                metrics.cost_info = CostInfo()
                 return result, metrics
 
         # Schedule the request through the global scheduler

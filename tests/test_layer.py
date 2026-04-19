@@ -5,7 +5,7 @@ Tests for Layer class parallel execution.
 import pytest
 import asyncio
 from unittest.mock import patch, AsyncMock, MagicMock
-from nons.core.layer import Layer, create_parallel_layer
+from nons.core.layer import Layer, LayerResult, create_parallel_layer
 from nons.core.node import Node
 from nons.core.types import (
     ModelConfig,
@@ -13,7 +13,6 @@ from nons.core.types import (
     ExecutionContext,
     LayerConfig,
     ErrorPolicy,
-    LayerResult,
     OperatorError,
 )
 from tests.conftest import MockLLMProvider, assert_execution_metrics
@@ -576,6 +575,134 @@ class TestLayerTimeout:
 
             with pytest.raises(asyncio.TimeoutError):
                 await layer.execute_parallel("Test input")
+
+
+class TestRetryWithBackoffParallel:
+    """Tests that RETRY_WITH_BACKOFF executes all nodes concurrently (issue #9).
+
+    These tests patch node.execute directly — the method that _execute_with_retry
+    actually calls — rather than the provider factory, which is imported into
+    node.py by value and therefore unaffected by module-level patches.
+    """
+
+    def setup_method(self):
+        """Set up test method."""
+        import nons.operators.base
+
+    async def test_retry_with_backoff_runs_nodes_concurrently(self):
+        """All nodes under RETRY_WITH_BACKOFF must start at the same time.
+
+        With N nodes each sleeping for T seconds, parallel execution finishes
+        in approximately T seconds, whereas sequential execution would take N*T.
+        If the implementation were still sequential, this assertion would fail.
+        """
+        import time
+
+        config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
+        num_nodes = 3
+        sleep_duration = 0.15  # 150 ms per node
+
+        nodes = [Node("generate", config) for _ in range(num_nodes)]
+        layer_config = LayerConfig(
+            error_policy=ErrorPolicy.RETRY_WITH_BACKOFF,
+            max_retries=0,
+            retry_delay_seconds=0.0,
+        )
+        layer = Layer(nodes, layer_config=layer_config)
+
+        async def slow_execute(*args, **kwargs):
+            await asyncio.sleep(sleep_duration)
+            return "ok"
+
+        patches = [
+            patch.object(node, "execute", new=AsyncMock(side_effect=slow_execute))
+            for node in nodes
+        ]
+        for p in patches:
+            p.start()
+        try:
+            start = time.monotonic()
+            result = await layer.execute_parallel("test")
+            elapsed = time.monotonic() - start
+        finally:
+            for p in patches:
+                p.stop()
+
+        assert len(result.outputs) == num_nodes
+        assert result.success_rate == 1.0
+        # Sequential execution would take >= num_nodes * sleep_duration.
+        # Parallel execution should finish well within that bound (allowing
+        # 2x single-node duration for scheduling overhead).
+        sequential_lower_bound = num_nodes * sleep_duration * 0.9
+        assert elapsed < sequential_lower_bound, (
+            f"Elapsed {elapsed:.3f}s >= sequential lower bound {sequential_lower_bound:.3f}s; "
+            "nodes appear to be executing sequentially instead of in parallel"
+        )
+
+    async def test_retry_with_backoff_nodes_retry_independently(self):
+        """Each node retries on its own schedule without blocking other nodes.
+
+        Node A fails on the first attempt and succeeds on retry.
+        Node B always succeeds on the first attempt.
+        Both should complete successfully regardless of node A's retry.
+        """
+        config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
+
+        node_a = Node("generate", config)
+        node_b = Node("generate", config)
+
+        layer_config = LayerConfig(
+            error_policy=ErrorPolicy.RETRY_WITH_BACKOFF,
+            max_retries=2,
+            retry_delay_seconds=0.001,  # tiny delay to keep the test fast
+        )
+        layer = Layer([node_a, node_b], layer_config=layer_config)
+
+        # Track how many times each node's execute() is called.
+        call_counts = {"a": 0, "b": 0}
+
+        async def node_a_execute(*args, **kwargs):
+            call_counts["a"] += 1
+            if call_counts["a"] == 1:
+                raise OperatorError("node A first attempt failure")
+            return "output-a"
+
+        async def node_b_execute(*args, **kwargs):
+            call_counts["b"] += 1
+            return "output-b"
+
+        with patch.object(node_a, "execute", new=AsyncMock(side_effect=node_a_execute)):
+            with patch.object(node_b, "execute", new=AsyncMock(side_effect=node_b_execute)):
+                result = await layer.execute_parallel("test")
+
+        assert result.success_rate == 1.0
+        assert len(result.outputs) == 2
+        # Node A needed 2 calls (1 failure + 1 retry success)
+        assert call_counts["a"] == 2, (
+            f"Expected node A to be called 2 times (1 fail + 1 retry), got {call_counts['a']}"
+        )
+        # Node B needed only 1 call (no failures)
+        assert call_counts["b"] == 1, (
+            f"Expected node B to be called 1 time, got {call_counts['b']}"
+        )
+
+    async def test_retry_with_backoff_raises_when_all_retries_exhausted(self):
+        """Layer must propagate the failure when a node exhausts all retries."""
+        config = ModelConfig(provider=ModelProvider.MOCK, model_name="test")
+        nodes = [Node("generate", config)]
+        layer_config = LayerConfig(
+            error_policy=ErrorPolicy.RETRY_WITH_BACKOFF,
+            max_retries=1,
+            retry_delay_seconds=0.0,
+        )
+        layer = Layer(nodes, layer_config=layer_config)
+
+        async def always_fails(*args, **kwargs):
+            raise OperatorError("permanent node failure")
+
+        with patch.object(nodes[0], "execute", new=AsyncMock(side_effect=always_fails)):
+            with pytest.raises(Exception, match="permanent node failure"):
+                await layer.execute_parallel("test")
 
 
 @pytest.mark.unit
