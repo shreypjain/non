@@ -1,0 +1,16 @@
+# Dependencies for Multi-Arm Bandit Experiment
+#
+# IMPORTANT: Use uv for package management, not pip!
+#
+# To install dependencies:
+#   uv add numpy
+#   uv add matplotlib
+#   uv add structlog
+#
+# Or simply run the experiment with uv:
+#   uv run python example_supergpqa_evolution.py
+#
+# Required packages:
+# - numpy>=1.24.0      (for genetic algorithm operations)
+# - matplotlib>=3.7.0  (for visualization)
+# - structlog          (for logging)
