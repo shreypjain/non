@@ -68,7 +68,7 @@ class Agent:
         """
         tool_result = await self.registry.execute(
             decision.selected_path,
-            decision.params if hasattr(decision, "params") else {},
+            decision.params if decision.params is not None else {},
             state=state,
             **context,
         )

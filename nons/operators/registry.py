@@ -71,6 +71,8 @@ class OperatorRegistry:
                 examples=[],
                 tags=[],
             )
+        elif isinstance(metadata, dict):
+            metadata = OperatorMetadata(**metadata)
 
         registered_op = RegisteredOperator(
             name=operator_name,
