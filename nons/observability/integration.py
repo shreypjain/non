@@ -230,8 +230,10 @@ class ObservabilityManager:
         try:
             yield span
             self.finish_operation(span)
-        except Exception as e:
-            self.finish_operation(span, error=e)
+        except BaseException as e:
+            # Catch BaseException so asyncio.CancelledError (a non-Exception BaseException
+            # in Python 3.8+) is also handled and the span is properly closed.
+            self.finish_operation(span, error=e if isinstance(e, Exception) else Exception(str(e)))
             raise
 
     def export_all_data(
@@ -262,10 +264,12 @@ class ObservabilityManager:
             return {"error": "Trace not found"}
 
         # Calculate trace statistics
-        start_time = min(span.start_time for span in spans if span.start_time)
-        end_time = max(span.end_time for span in spans if span.end_time)
+        start_times = [span.start_time for span in spans if span.start_time]
+        end_times = [span.end_time for span in spans if span.end_time is not None]
+        start_time = min(start_times) if start_times else None
+        end_time = max(end_times) if end_times else None
         total_duration = (
-            (end_time - start_time) * 1000 if end_time and start_time else 0
+            (end_time - start_time) * 1000 if end_time is not None and start_time is not None else 0
         )
 
         # Count spans by status

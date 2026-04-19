@@ -203,6 +203,9 @@ class TraceManager:
             "current_span_context", default=None
         )
 
+        # Tokens from ContextVar.set() keyed by span_id, used to restore parent context
+        self._span_tokens: Dict[str, Any] = {}
+
     def start_span(
         self,
         operation_name: str,
@@ -246,11 +249,12 @@ class TraceManager:
         with self._lock:
             self.active_spans[span_id] = span
 
-        # Set as current context
+        # Set as current context and save the token so finish_span can restore the parent
         new_context = SpanContext(
             trace_id=trace_id, span_id=span_id, parent_span_id=parent_span_id
         )
-        self.current_span_context.set(new_context)
+        token = self.current_span_context.set(new_context)
+        self._span_tokens[span_id] = token
 
         return span
 
@@ -260,6 +264,11 @@ class TraceManager:
             return
 
         span.finish(status)
+
+        # Restore the parent span context so nested spans don't corrupt the call stack
+        token = self._span_tokens.pop(span.span_id, None)
+        if token is not None:
+            self.current_span_context.reset(token)
 
         with self._lock:
             # Move from active to completed

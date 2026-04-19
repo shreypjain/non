@@ -5,6 +5,7 @@ Provides comprehensive metrics collection for performance monitoring,
 cost tracking, and operational insights with database-ready structures.
 """
 
+import math
 import time
 import threading
 import uuid
@@ -250,8 +251,9 @@ class MetricsCollector:
                 summary.p50_value = statistics.median(sorted_values)
 
             if len(values) >= 20:
-                summary.p95_value = sorted_values[int(0.95 * len(sorted_values))]
-                summary.p99_value = sorted_values[int(0.99 * len(sorted_values))]
+                n = len(sorted_values)
+                summary.p95_value = sorted_values[math.ceil(0.95 * n) - 1]
+                summary.p99_value = sorted_values[math.ceil(0.99 * n) - 1]
 
             return summary
 
