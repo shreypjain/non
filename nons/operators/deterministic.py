@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import json
 import hashlib
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as dataclass_replace
 from abc import ABC, abstractmethod
 
 from nons.core.types import InputSchema, OutputSchema, OperatorMetadata
@@ -262,13 +262,14 @@ class ExtractWinners(DeterministicOp):
                 "Input must be PackedCandidates or dict with 'candidates' key"
             )
 
-        # Ensure all candidates have scores
+        # Ensure all candidates have scores, creating new instances to avoid
+        # mutating the originals (which would corrupt cache keys).
         scored_candidates = []
         for candidate in candidates:
             if candidate.score is None:
                 # Default scoring based on content hash (deterministic)
                 score = int(_hash(candidate.content)[:8], 16) / 0xFFFFFFFF
-                candidate.score = score
+                candidate = dataclass_replace(candidate, score=score)
             scored_candidates.append(candidate)
 
         # Sort by score (descending)
