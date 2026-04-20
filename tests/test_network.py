@@ -5,7 +5,7 @@ Tests for Network (NoN) class sequential execution.
 import pytest
 import asyncio
 from unittest.mock import patch, AsyncMock, MagicMock
-from nons.core.network import NoN
+from nons.core.network import NoN, NetworkResult
 from nons.core.layer import Layer
 from nons.core.node import Node
 from nons.core.types import (
@@ -15,7 +15,6 @@ from nons.core.types import (
     NetworkConfig,
     LayerConfig,
     ErrorPolicy,
-    NetworkResult,
     OperatorError,
 )
 from tests.conftest import MockLLMProvider

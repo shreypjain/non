@@ -5,9 +5,9 @@ Tests for observability system (tracing, logging, metrics).
 import pytest
 import time
 from unittest.mock import patch, MagicMock
-from nons.observability.tracing import TracingManager, Span, SpanKind, SpanStatus
-from nons.observability.logging import LoggingManager, LogLevel
-from nons.observability.metrics import MetricsManager, MetricType
+from nons.observability.tracing import TraceManager as TracingManager, Span, SpanKind, SpanStatus
+from nons.observability.logging import LogManager as LoggingManager, LogLevel
+from nons.observability.metrics import MetricsCollector as MetricsManager, MetricType
 from nons.observability.integration import (
     ObservabilityManager,
     get_observability,

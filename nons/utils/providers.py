@@ -356,6 +356,22 @@ class GoogleProvider(BaseLLMProvider):
 class MockProvider(BaseLLMProvider):
     """Mock provider for testing and placeholder operations."""
 
+    def __init__(self, model_config: ModelConfig):
+        """
+        Initialize MockProvider, always reporting provider_name as 'mock'.
+
+        This ensures that metrics produced by MockProvider — including those
+        created during a fallback from a failing real provider — always reflect
+        the actual execution path rather than the original model_config provider.
+
+        Args:
+            model_config: Model configuration (provider field is ignored for naming).
+        """
+        super().__init__(model_config)
+        # Override the provider name inherited from BaseLLMProvider so that
+        # metrics always report 'mock', regardless of the model_config's provider.
+        self.provider_name = "mock"
+
     async def generate_completion(
         self, prompt: str, system_prompt: Optional[str] = None, **kwargs
     ) -> tuple[str, ExecutionMetrics]:

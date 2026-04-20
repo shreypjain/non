@@ -561,3 +561,89 @@ class TestNodeIntegration:
 
                 assert result is not None
                 assert node._execution_count == 1
+
+
+class TestMockProviderFallbackMetrics:
+    """Tests that metrics correctly reflect MockProvider fallback (issue #11)."""
+
+    def setup_method(self):
+        """Set up test method."""
+        import nons.operators.base
+
+    def test_mock_provider_always_sets_provider_name_to_mock(self):
+        """MockProvider.__init__ must set provider_name='mock' regardless of model_config.
+
+        Without the fix, provider_name would inherit the model_config's provider
+        value (e.g. 'openai'), causing metrics to misreport the execution path.
+        """
+        from nons.utils.providers import MockProvider
+
+        for provider_enum in [ModelProvider.OPENAI, ModelProvider.ANTHROPIC, ModelProvider.MOCK]:
+            config = ModelConfig(provider=provider_enum, model_name="some-model")
+            mock_provider = MockProvider(config)
+
+            assert mock_provider.provider_name == "mock", (
+                f"Expected provider_name='mock' when model_config.provider={provider_enum.value}, "
+                f"got '{mock_provider.provider_name}'"
+            )
+
+    async def test_mock_provider_generate_completion_reports_mock_provider_and_zero_cost(self):
+        """Metrics from MockProvider.generate_completion must have provider='mock' and cost=0.
+
+        This verifies the fix in providers.py ensures correct metric attribution
+        even when MockProvider is constructed from a real-provider model_config.
+        """
+        from nons.utils.providers import MockProvider
+
+        config = ModelConfig(provider=ModelProvider.OPENAI, model_name="gpt-4")
+        mock_provider = MockProvider(config)
+
+        result_text, metrics = await mock_provider.generate_completion("hello")
+
+        assert metrics.provider == "mock", (
+            f"Expected metrics.provider='mock', got '{metrics.provider}'"
+        )
+        assert metrics.cost_info.total_cost_usd == 0.0, (
+            f"Expected zero cost for mock provider, got {metrics.cost_info.total_cost_usd}"
+        )
+
+    async def test_node_fallback_metrics_report_mock_provider_and_zero_cost(self):
+        """When the real provider raises and node falls back to MockProvider, metrics must
+        show provider='mock' and cost=0, not the original provider name and price.
+
+        This covers the fix in node.py (_execute_request fallback block) and
+        providers.py (MockProvider.__init__) together.
+        """
+        config = ModelConfig(provider=ModelProvider.OPENAI, model_name="gpt-4o")
+        node = Node("generate", model_config=config)
+
+        with patch("nons.core.node.create_provider") as mock_create_provider:
+            # Simulate a real provider that always raises
+            failing_prov = MagicMock()
+            failing_prov.generate_completion = AsyncMock(
+                side_effect=Exception("simulated API failure")
+            )
+            mock_create_provider.return_value = failing_prov
+
+            with patch("nons.core.scheduler.get_scheduler") as mock_get_scheduler:
+                scheduler = MagicMock()
+                # Make scheduler call the operation directly so we exercise
+                # _execute_request and its fallback path.
+                scheduler.schedule_request = AsyncMock(
+                    side_effect=lambda operation, **kwargs: operation()
+                )
+                mock_get_scheduler.return_value = scheduler
+
+                result = await node.execute("some prompt")
+
+        metrics = node.get_last_metrics()
+        assert metrics is not None, "Node should have recorded metrics after execution"
+
+        assert metrics.provider == "mock", (
+            f"After fallback to MockProvider, expected metrics.provider='mock', "
+            f"got '{metrics.provider}'"
+        )
+        assert metrics.cost_info.total_cost_usd == 0.0, (
+            f"After fallback to MockProvider, expected cost=0, "
+            f"got {metrics.cost_info.total_cost_usd}"
+        )

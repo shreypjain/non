@@ -312,38 +312,62 @@ class Layer:
     async def _execute_with_retry(
         self, node_inputs: List[Any], node_contexts: List[ExecutionContext]
     ) -> tuple[List[Any], Dict[str, Any]]:
-        """Execute with retry and backoff policy."""
-        outputs = []
-        node_results = {}
+        """Execute with retry and backoff policy, running all nodes concurrently.
 
-        for node, node_input, context in zip(self.nodes, node_inputs, node_contexts):
-            success = False
-            last_error = None
+        Each node independently retries with exponential backoff on failure, but
+        all nodes start concurrently via asyncio.gather() so that one node's
+        retries do not block other nodes from making progress.
+        """
 
+        async def _node_with_retry(
+            node: Node, node_input: Any, context: ExecutionContext
+        ) -> tuple[str, bool, Any, Optional[Exception]]:
+            """Execute a single node with independent retry and exponential backoff.
+
+            Returns:
+                tuple: (node_id, success, output, last_error)
+            """
+            last_error: Optional[Exception] = None
             for attempt in range(self.layer_config.max_retries + 1):
                 try:
                     output = await node.execute(node_input, execution_context=context)
-                    outputs.append(output)
-                    node_results[node.node_id] = {"success": True, "output": output}
-                    success = True
-                    break
+                    return node.node_id, True, output, None
                 except Exception as e:
                     last_error = e
                     if attempt < self.layer_config.max_retries:
-                        # Wait with exponential backoff
+                        # Wait with exponential backoff before next attempt
                         delay = self.layer_config.retry_delay_seconds * (2**attempt)
                         await asyncio.sleep(delay)
+            return node.node_id, False, None, last_error
 
-            if not success:
-                node_results[node.node_id] = {
-                    "success": False,
-                    "error": str(last_error),
-                }
-                if self.layer_config.error_policy == ErrorPolicy.RETRY_WITH_BACKOFF:
-                    # Still fail if retries exhausted
-                    raise OperatorError(
-                        f"Node {node.node_id} failed after {self.layer_config.max_retries} retries: {last_error}"
-                    )
+        # Launch all nodes concurrently; each node retries independently
+        tasks = [
+            asyncio.create_task(
+                _node_with_retry(node, node_input, context),
+                name=f"retry_node_{i}_{node.node_id}",
+            )
+            for i, (node, node_input, context) in enumerate(
+                zip(self.nodes, node_inputs, node_contexts)
+            )
+        ]
+
+        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        outputs = []
+        node_results = {}
+
+        for raw in raw_results:
+            if isinstance(raw, BaseException):
+                raise raw
+            node_id, success, output, error = raw
+            if success:
+                outputs.append(output)
+                node_results[node_id] = {"success": True, "output": output}
+            else:
+                node_results[node_id] = {"success": False, "error": str(error)}
+                raise OperatorError(
+                    f"Node {node_id} failed after {self.layer_config.max_retries} retries: {error}"
+                )
 
         return outputs, node_results
 
