@@ -8,13 +8,11 @@ and execution parameters.
 
 import uuid
 import time
-from typing import Any, Dict, Optional, Union, List
+from typing import Any, Dict, Optional, List
 from ..operators.registry import RegisteredOperator, get_operator
 from .types import (
-    Content,
     ModelConfig,
     ExecutionContext,
-    ErrorPolicy,
     OperatorError,
     ValidationError,
     ModelProvider,
@@ -24,7 +22,6 @@ from .types import (
 )
 from .config import get_default_model_config
 from ..utils.providers import create_provider
-import os
 
 
 class Node:
@@ -125,13 +122,6 @@ class Node:
 
         lines.append("└─────────────────────┘")
         return "\n".join(lines)
-
-    def _format_output(self, output: Any, max_length: int = 100) -> str:
-        """Format output for display with truncation."""
-        output_str = str(output)
-        if len(output_str) > max_length:
-            return output_str[:max_length] + "..."
-        return output_str
 
     async def execute(
         self, *args, execution_context: Optional[ExecutionContext] = None, **kwargs
@@ -402,20 +392,6 @@ class Node:
             >>> parallel_nodes = 3 * node  # Creates 3 parallel nodes
         """
         return self.__mul__(count)
-
-    @classmethod
-    def from_operator(cls, operator_name: str, **config_kwargs) -> "Node":
-        """
-        Factory method to create a node from an operator name.
-
-        Args:
-            operator_name: Name of the registered operator
-            **config_kwargs: Configuration parameters
-
-        Returns:
-            New Node instance
-        """
-        return cls(operator_name=operator_name, **config_kwargs)
 
 
 def create_node(operator_name: str, **kwargs) -> Node:
