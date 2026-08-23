@@ -434,23 +434,6 @@ class Layer:
             "error_policy": self.layer_config.error_policy.value,
         }
 
-    def add_node(self, node: Node) -> None:
-        """Add a node to this layer."""
-        self.nodes.append(node)
-
-    def remove_node(self, node_id: str) -> bool:
-        """Remove a node by ID. Returns True if removed, False if not found."""
-        for i, node in enumerate(self.nodes):
-            if node.node_id == node_id:
-                self.nodes.pop(i)
-                return True
-        return False
-
-    @classmethod
-    def from_nodes(cls, *nodes: Node, **kwargs) -> "Layer":
-        """Factory method to create a layer from multiple nodes."""
-        return cls(nodes=list(nodes), **kwargs)
-
     @classmethod
     def from_operators(
         cls,
