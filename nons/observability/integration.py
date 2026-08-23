@@ -5,9 +5,7 @@ Provides unified observability that automatically correlates traces, logs, and m
 with database-ready export capabilities.
 """
 
-import asyncio
-import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from contextlib import asynccontextmanager
 
 from .tracing import (
@@ -15,11 +13,9 @@ from .tracing import (
     Span,
     SpanKind,
     SpanStatus,
-    get_tracer,
-    async_traced_operation,
 )
-from .logging import LogManager, LogLevel, get_logger, get_log_manager
-from .metrics import MetricsCollector, MetricType, get_metrics_collector
+from .logging import LogManager
+from .metrics import MetricsCollector
 
 
 class ObservabilityManager:
