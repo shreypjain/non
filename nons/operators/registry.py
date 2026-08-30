@@ -196,27 +196,6 @@ class RegisteredOperator:
         if missing_params:
             raise ValidationError(f"Missing required parameters: {missing_params}")
 
-    def __mul__(self, n: int) -> "ParallelOperator":
-        """Support multiplication operator for parallel execution."""
-        if not isinstance(n, int) or n < 1:
-            raise ValidationError("Multiplication factor must be a positive integer")
-        return ParallelOperator(self, n)
-
-
-class ParallelOperator:
-    """
-    Represents n parallel instances of an operator for batch execution.
-    Created via the multiplication operator (operator * n).
-    """
-
-    def __init__(self, operator: RegisteredOperator, count: int):
-        self.operator = operator
-        self.count = count
-        self.name = f"{operator.name}_x{count}"
-
-    def __repr__(self) -> str:
-        return f"ParallelOperator({self.operator.name} x {self.count})"
-
 
 # Global registry instance
 _global_registry = OperatorRegistry()
@@ -274,7 +253,6 @@ def operator(
 
         # Attach registry information to the wrapper
         wrapper._registered_operator = registered_op
-        wrapper.__mul__ = registered_op.__mul__  # Support multiplication
 
         return wrapper
 
