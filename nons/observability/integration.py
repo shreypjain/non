@@ -16,7 +16,6 @@ from .tracing import (
     SpanKind,
     SpanStatus,
     get_tracer,
-    async_traced_operation,
 )
 from .logging import LogManager, LogLevel, get_logger, get_log_manager
 from .metrics import MetricsCollector, MetricType, get_metrics_collector
